@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { studentAPI } from '../lib/api';
 import DashboardCards from '../components/dashboard/DashboardCards';
 import type { InternshipItem } from '../components/internships/InternshipCard';
+import { getInternshipTimeStatus } from '../utils/internshipStatus';
+import { formatDisplayDate } from '../utils/dateFormat';
 import { Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -32,26 +34,27 @@ export default function DashboardPage() {
     const totalInternships = internships.length;
     const pendingInternships = internships.filter((item) => item.status === 'pending').length;
     const approvedInternships = internships.filter((item) => item.status === 'approved').length;
-    const completedInternships = internships.filter((item) => item.status === 'completed').length;
+    const rejectedInternships = internships.filter((item) => item.status === 'rejected').length;
+
+    const approvedItems = internships.filter((item) => item.status === 'approved');
+    const activeInternships = approvedItems.filter(
+      (item) => getInternshipTimeStatus(item.startDate, item.endDate) === 'active'
+    ).length;
+    const completedInternships = approvedItems.filter(
+      (item) => getInternshipTimeStatus(item.startDate, item.endDate) === 'completed'
+    ).length;
 
     return {
       totalInternships,
       pendingInternships,
       approvedInternships,
+      rejectedInternships,
+      activeInternships,
       completedInternships
     };
   }, [internships]);
 
-  const today = useMemo(
-    () =>
-      new Date().toLocaleDateString(undefined, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      }),
-    []
-  );
+  const today = useMemo(() => formatDisplayDate(new Date()), []);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -139,6 +142,10 @@ export default function DashboardPage() {
       </section>
 
       <DashboardCards stats={stats} />
+
+      <p className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+        Internships must be approved before they become active.
+      </p>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-bold text-slate-900">Overview</h3>

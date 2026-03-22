@@ -1,6 +1,62 @@
 import User from '../models/User.js';
 import Internship from '../models/Internship.js';
 import ProgressReport from '../models/ProgressReport.js';
+import File from '../models/File.js';
+import Notification from '../models/Notification.js';
+import { sendInternshipStatusEmail } from '../utils/emailService.js';
+
+const notifyStudentOnStatusChange = async (internshipId, status) => {
+  const internship = await Internship.findById(internshipId)
+    .populate('studentId', 'name email')
+    .select('companyName role position studentId');
+
+  if (!internship?.studentId?.email) {
+    return;
+  }
+
+  const isApproved = status === 'approved';
+  const title = isApproved ? 'Internship Approved' : 'Internship Rejected';
+  const message = `Your internship at ${internship.companyName} for ${internship.role || internship.position || 'Intern'} has been ${isApproved ? 'approved' : 'rejected'} by admin.`;
+
+  await Notification.create({
+    userId: internship.studentId._id,
+    role: 'student',
+    internshipId: internship._id,
+    title,
+    message,
+    type: isApproved ? 'internship_approved' : 'internship_rejected'
+  });
+
+  await sendInternshipStatusEmail({
+    studentName: internship.studentId.name,
+    studentEmail: internship.studentId.email,
+    companyName: internship.companyName,
+    role: internship.role || internship.position,
+    status
+  });
+};
+
+const notifyStudentOnReportFeedback = async (reportId) => {
+  const report = await ProgressReport.findById(reportId)
+    .populate('studentId', 'name')
+    .populate('internshipId', 'companyName');
+
+  if (!report?.studentId?._id) {
+    return;
+  }
+
+  const internshipId = report.internshipId?._id;
+  const companyName = report.internshipId?.companyName || 'your internship';
+
+  await Notification.create({
+    userId: report.studentId._id,
+    role: 'student',
+    internshipId,
+    title: 'Report Feedback Received',
+    message: `Admin added feedback on your progress report for ${companyName}.`,
+    type: 'report_feedback_added'
+  });
+};
 
 // Get all students
 export const getAllStudents = async (req, res) => {
@@ -37,16 +93,81 @@ export const getAllInternships = async (req, res) => {
     .populate('studentId', 'name email department semester')
     .sort({ createdAt: -1 });
 
+  const internshipIds = internships.map((internship) => internship._id);
+  const files = await File.find({ internshipId: { $in: internshipIds } })
+    .select('internshipId fileName fileUrl fileType createdAt')
+    .sort({ createdAt: -1 });
+
+  const filesByInternship = new Map();
+
+  for (const fileDoc of files) {
+    const internshipId = fileDoc.internshipId.toString();
+    if (!filesByInternship.has(internshipId)) {
+      filesByInternship.set(internshipId, []);
+    }
+    filesByInternship.get(internshipId).push(fileDoc);
+  }
+
+  const internshipsWithFiles = internships.map((internship) => {
+    const plainInternship = internship.toObject();
+    plainInternship.files = filesByInternship.get(internship._id.toString()) || [];
+    return plainInternship;
+  });
+
   res.json({
     success: true,
-    internships
+    internships: internshipsWithFiles
+  });
+};
+
+// Update internship status (approve/reject)
+export const updateInternshipStatus = async (req, res) => {
+  const { status } = req.body;
+
+  if (!status) {
+    return res.status(400).json({ error: 'Please provide internship status' });
+  }
+
+  const normalizedStatus = status.toLowerCase();
+  const mappedStatus = normalizedStatus === 'approve'
+    ? 'approved'
+    : normalizedStatus === 'reject'
+      ? 'rejected'
+      : normalizedStatus;
+
+  if (!['approved', 'rejected'].includes(mappedStatus)) {
+    return res.status(400).json({ error: 'Status must be approve/reject or approved/rejected' });
+  }
+
+  let internship = await Internship.findById(req.params.id);
+
+  if (!internship) {
+    return res.status(404).json({ error: 'Internship not found' });
+  }
+
+  internship = await Internship.findByIdAndUpdate(
+    req.params.id,
+    {
+      status: mappedStatus,
+      adminFeedback: ''
+    },
+    { new: true }
+  );
+
+  try {
+    await notifyStudentOnStatusChange(req.params.id, mappedStatus);
+  } catch (error) {
+    console.error('Failed to send internship status email:', error.message);
+  }
+
+  res.json({
+    success: true,
+    internship
   });
 };
 
 // Approve internship
 export const approveInternship = async (req, res) => {
-  const { feedback } = req.body;
-
   let internship = await Internship.findById(req.params.internshipId);
 
   if (!internship) {
@@ -57,10 +178,16 @@ export const approveInternship = async (req, res) => {
     req.params.internshipId,
     {
       status: 'approved',
-      adminFeedback: feedback
+      adminFeedback: ''
     },
     { new: true }
   );
+
+  try {
+    await notifyStudentOnStatusChange(req.params.internshipId, 'approved');
+  } catch (error) {
+    console.error('Failed to send internship approval email:', error.message);
+  }
 
   res.json({
     success: true,
@@ -70,12 +197,6 @@ export const approveInternship = async (req, res) => {
 
 // Reject internship
 export const rejectInternship = async (req, res) => {
-  const { feedback } = req.body;
-
-  if (!feedback) {
-    return res.status(400).json({ error: 'Please provide feedback for rejection' });
-  }
-
   let internship = await Internship.findById(req.params.internshipId);
 
   if (!internship) {
@@ -86,10 +207,16 @@ export const rejectInternship = async (req, res) => {
     req.params.internshipId,
     {
       status: 'rejected',
-      adminFeedback: feedback
+      adminFeedback: ''
     },
     { new: true }
   );
+
+  try {
+    await notifyStudentOnStatusChange(req.params.internshipId, 'rejected');
+  } catch (error) {
+    console.error('Failed to send internship rejection email:', error.message);
+  }
 
   res.json({
     success: true,
@@ -141,6 +268,64 @@ export const feedbackOnReport = async (req, res) => {
     {
       adminFeedback: feedback
     },
+    { new: true }
+  );
+
+  try {
+    await notifyStudentOnReportFeedback(req.params.reportId);
+  } catch (error) {
+    console.error('Failed to create report feedback notification:', error.message);
+  }
+
+  res.json({
+    success: true,
+    report
+  });
+};
+
+// Update report feedback
+export const updateReportFeedback = async (req, res) => {
+  const { feedback } = req.body;
+
+  if (!feedback) {
+    return res.status(400).json({ error: 'Please provide feedback' });
+  }
+
+  let report = await ProgressReport.findById(req.params.id);
+
+  if (!report) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  report = await ProgressReport.findByIdAndUpdate(
+    req.params.id,
+    { adminFeedback: feedback },
+    { new: true }
+  );
+
+  try {
+    await notifyStudentOnReportFeedback(req.params.id);
+  } catch (error) {
+    console.error('Failed to create report feedback notification:', error.message);
+  }
+
+  res.json({
+    success: true,
+    report
+  });
+};
+
+// Delete report feedback
+export const deleteReportFeedback = async (req, res) => {
+  let report = await ProgressReport.findById(req.params.id);
+
+  if (!report) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  report = await ProgressReport.findByIdAndUpdate(
+    req.params.id,
+    { adminFeedback: '' },
     { new: true }
   );
 

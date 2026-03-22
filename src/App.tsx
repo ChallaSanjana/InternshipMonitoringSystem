@@ -8,6 +8,8 @@ import AppLayout from './components/layout/AppLayout';
 import DashboardPage from './pages/DashboardPage';
 import InternshipsPage from './pages/InternshipsPage';
 import ReportsPage from './pages/ReportsPage';
+import ProfilePage from './pages/ProfilePage';
+import AdminStudentDetailsPage from './pages/AdminStudentDetailsPage';
 import { Loader2 } from 'lucide-react';
 
 function LoginPage() {
@@ -22,6 +24,7 @@ function SignupPage() {
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const defaultAuthenticatedRoute = user?.role === 'admin' ? '/admin' : '/dashboard';
 
   if (loading) {
     return (
@@ -35,11 +38,11 @@ function AppContent() {
     <Routes>
       <Route
         path="/login"
-        element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+        element={user ? <Navigate to={defaultAuthenticatedRoute} replace /> : <LoginPage />}
       />
       <Route
         path="/signup"
-        element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />}
+        element={user ? <Navigate to={defaultAuthenticatedRoute} replace /> : <SignupPage />}
       />
 
       <Route
@@ -49,23 +52,67 @@ function AppContent() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/internships" element={<InternshipsPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
+        <Route
+          path="/dashboard"
+          element={user?.role === 'admin' ? <Navigate to="/admin" replace /> : <DashboardPage />}
+        />
+        <Route
+          path="/internships"
+          element={user?.role === 'admin' ? <Navigate to="/admin/internships" replace /> : <InternshipsPage />}
+        />
+        <Route
+          path="/reports"
+          element={user?.role === 'admin' ? <Navigate to="/admin/reports" replace /> : <ReportsPage />}
+        />
+        <Route
+          path="/profile"
+          element={user?.role === 'admin' ? <Navigate to="/admin" replace /> : <ProfilePage />}
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/students"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/students/:studentId"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminStudentDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/internships"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       <Route
-        path="/admin"
-        element={
-          <ProtectedRoute requireAdmin>
-            <AdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
         path="*"
-        element={<Navigate to={user ? '/dashboard' : '/login'} replace />}
+        element={<Navigate to={user ? defaultAuthenticatedRoute : '/login'} replace />}
       />
     </Routes>
   );

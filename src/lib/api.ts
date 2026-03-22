@@ -47,7 +47,12 @@ api.interceptors.response.use(
 export const authAPI = {
   signup: (data: Record<string, unknown>) => api.post('/auth/signup', data),
   login: (data: Record<string, unknown>) => api.post('/auth/login', data),
-  getCurrentUser: () => api.get('/auth/me')
+  getCurrentUser: () => api.get('/auth/me'),
+  updateProfile: (data: Record<string, unknown>) => api.put('/auth/profile', data),
+  uploadProfileImage: (data: FormData) =>
+    api.put('/auth/profile/image', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
 };
 
 export const studentAPI = {
@@ -58,6 +63,7 @@ export const studentAPI = {
   deleteInternship: (id: string) => api.delete(`/student/internships/${id}`),
   submitReport: (data: Record<string, unknown>) => api.post('/student/reports', data),
   getReportsByInternship: (internshipId: string) => api.get(`/student/reports/${internshipId}`),
+  updateReport: (id: string, data: Record<string, unknown>) => api.put(`/student/reports/${id}`, data),
   deleteReport: (id: string) => api.delete(`/student/reports/${id}`),
   uploadFile: (data: FormData) =>
     api.post('/student/files/upload', data, {
@@ -68,20 +74,31 @@ export const studentAPI = {
   deleteFile: (id: string) => api.delete(`/student/files/${id}`)
 };
 
+export const notificationAPI = {
+  getMyNotifications: () => api.get('/notifications'),
+  markAsRead: (id: string) => api.patch(`/notifications/${id}/read`)
+};
+
 export const adminAPI = {
   getDashboardStats: () => api.get('/admin/dashboard/stats'),
   getAllStudents: () => api.get('/admin/students'),
   getStudentDetails: (studentId: string) => api.get(`/admin/students/${studentId}`),
   getAllInternships: () => api.get('/admin/internships'),
-  approveInternship: (id: string, feedback: string) =>
-    api.post(`/admin/internships/${id}/approve`, { feedback }),
-  rejectInternship: (id: string, feedback: string) =>
-    api.post(`/admin/internships/${id}/reject`, { feedback }),
+  updateInternshipStatus: (id: string, status: 'approve' | 'reject' | 'approved' | 'rejected') =>
+    api.put(`/admin/internships/${id}/status`, { status }),
+  approveInternship: (id: string) =>
+    api.put(`/admin/internships/${id}/status`, { status: 'approved' }),
+  rejectInternship: (id: string) =>
+    api.put(`/admin/internships/${id}/status`, { status: 'rejected' }),
   getAllReports: () => api.get('/admin/reports'),
   getReportsByInternshipAdmin: (internshipId: string) =>
     api.get(`/admin/internships/${internshipId}/reports`),
+  updateReportFeedback: (id: string, feedback: string) =>
+    api.put(`/admin/reports/${id}/feedback`, { feedback }),
+  deleteReportFeedback: (id: string) =>
+    api.delete(`/admin/reports/${id}/feedback`),
   feedbackOnReport: (id: string, feedback: string) =>
-    api.post(`/admin/reports/${id}/feedback`, { feedback })
+    api.put(`/admin/reports/${id}/feedback`, { feedback })
 };
 
 export default api;

@@ -1,4 +1,4 @@
-import { BarChart3, Briefcase, FileText, Shield } from 'lucide-react';
+import { BarChart3, Briefcase, FileText, Shield, Users, User } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 interface SidebarProps {
@@ -7,7 +7,30 @@ interface SidebarProps {
 
 const baseItemClass = 'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition';
 
+type MenuItem = {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  end?: boolean;
+};
+
+const studentMenu: MenuItem[] = [
+  { to: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+  { to: '/internships', label: 'Internships', icon: Briefcase },
+  { to: '/reports', label: 'Progress Reports', icon: FileText },
+  { to: '/profile', label: 'Profile', icon: User }
+];
+
+const adminMenu: MenuItem[] = [
+  { to: '/admin', label: 'Admin Dashboard', icon: Shield, end: true },
+  { to: '/admin/students', label: 'Students', icon: Users },
+  { to: '/admin/internships', label: 'Internships', icon: Briefcase },
+  { to: '/admin/reports', label: 'Reports', icon: FileText }
+];
+
 export default function Sidebar({ isAdmin }: SidebarProps) {
+  const menuItems = isAdmin ? adminMenu : studentMenu;
+
   return (
     <aside className="w-full border-b border-slate-200 bg-white p-4 md:h-screen md:w-64 md:border-b-0 md:border-r md:p-5">
       <div className="mb-5 hidden md:block">
@@ -16,47 +39,22 @@ export default function Sidebar({ isAdmin }: SidebarProps) {
       </div>
 
       <nav className="grid grid-cols-2 gap-2 md:grid-cols-1">
-        <NavLink
-          to="/dashboard"
-          className={({ isActive }) =>
-            `${baseItemClass} ${isActive ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`
-          }
-        >
-          <BarChart3 className="h-4 w-4" />
-          Dashboard
-        </NavLink>
-
-        <NavLink
-          to="/internships"
-          className={({ isActive }) =>
-            `${baseItemClass} ${isActive ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`
-          }
-        >
-          <Briefcase className="h-4 w-4" />
-          Internships
-        </NavLink>
-
-        <NavLink
-          to="/reports"
-          className={({ isActive }) =>
-            `${baseItemClass} ${isActive ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`
-          }
-        >
-          <FileText className="h-4 w-4" />
-          Progress Reports
-        </NavLink>
-
-        {isAdmin && (
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          return (
           <NavLink
-            to="/admin"
+            key={item.to}
+            to={item.to}
+            end={item.end}
             className={({ isActive }) =>
               `${baseItemClass} ${isActive ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`
             }
           >
-            <Shield className="h-4 w-4" />
-            Admin
+            <Icon className="h-4 w-4" />
+            {item.label}
           </NavLink>
-        )}
+          );
+        })}
       </nav>
     </aside>
   );

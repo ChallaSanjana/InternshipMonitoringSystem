@@ -9,6 +9,7 @@ import {
   deleteInternship,
   submitReport,
   getReportsByInternship,
+  updateReport,
   deleteReport,
   uploadFile,
   getFilesByInternship,
@@ -31,6 +32,7 @@ router.delete('/internships/:id', deleteInternship);
 // Report routes
 router.post('/reports', submitReport);
 router.get('/reports/:internshipId', getReportsByInternship);
+router.put('/reports/:id', updateReport);
 router.delete('/reports/:id', deleteReport);
 
 // File routes

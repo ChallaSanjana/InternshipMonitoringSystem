@@ -4,6 +4,8 @@ interface DashboardStats {
   totalInternships: number;
   pendingInternships: number;
   approvedInternships: number;
+  rejectedInternships: number;
+  activeInternships: number;
   completedInternships: number;
 }
 
@@ -37,7 +39,7 @@ function Card({
 
 export default function DashboardCards({ stats }: DashboardCardsProps) {
   return (
-    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
       <Card
         title="Total Internships"
         value={stats.totalInternships}
@@ -45,19 +47,31 @@ export default function DashboardCards({ stats }: DashboardCardsProps) {
         colorClass="bg-blue-100"
       />
       <Card
-        title="Pending Internships"
+        title="Pending Approval"
         value={stats.pendingInternships}
         icon={<Clock3 className="h-5 w-5 text-amber-700" />}
         colorClass="bg-amber-100"
       />
       <Card
-        title="Approved Internships"
+        title="Approved"
         value={stats.approvedInternships}
         icon={<CheckCircle2 className="h-5 w-5 text-emerald-700" />}
         colorClass="bg-emerald-100"
       />
       <Card
-        title="Completed Internships"
+        title="Rejected"
+        value={stats.rejectedInternships}
+        icon={<Briefcase className="h-5 w-5 text-rose-700" />}
+        colorClass="bg-rose-100"
+      />
+      <Card
+        title="Active (Approved)"
+        value={stats.activeInternships}
+        icon={<CheckCircle2 className="h-5 w-5 text-emerald-700" />}
+        colorClass="bg-emerald-100"
+      />
+      <Card
+        title="Completed (Approved)"
         value={stats.completedInternships}
         icon={<Trophy className="h-5 w-5 text-violet-700" />}
         colorClass="bg-violet-100"

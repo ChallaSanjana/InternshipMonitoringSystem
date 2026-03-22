@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { FileText } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import AddReport from '../components/AddReport';
+import EditReport from '../components/EditReport';
 import ReportList, { type ProgressReportItem } from '../components/reports/ReportList';
 import type { InternshipItem } from '../components/internships/InternshipCard';
 import { studentAPI } from '../lib/api';
 
 export default function ReportsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [internships, setInternships] = useState<InternshipItem[]>([]);
   const [selectedInternshipId, setSelectedInternshipId] = useState('');
   const [reports, setReports] = useState<ProgressReportItem[]>([]);
@@ -13,13 +16,31 @@ export default function ReportsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showAddReport, setShowAddReport] = useState(false);
+  const [showEditReport, setShowEditReport] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<ProgressReportItem | null>(null);
 
   const selectedInternship = internships.find((item) => item._id === selectedInternshipId);
+  const canAddReport = selectedInternship?.status === 'approved';
+  const addReportDisabledMessage =
+    selectedInternship?.status === 'pending'
+      ? 'Waiting for admin approval'
+      : selectedInternship?.status === 'rejected'
+        ? 'Report submission is disabled because this internship was rejected'
+        : '';
 
   const fetchInternships = async () => {
     const response = await studentAPI.getMyInternships();
     const items = response.data.internships || [];
     setInternships(items);
+
+    const internshipIdFromQuery = searchParams.get('internshipId');
+    const hasQueryInternship = internshipIdFromQuery && items.some((item: InternshipItem) => item._id === internshipIdFromQuery);
+
+    if (hasQueryInternship) {
+      setSelectedInternshipId(internshipIdFromQuery);
+      return;
+    }
+
     if (items.length > 0) {
       setSelectedInternshipId((prev) => prev || items[0]._id);
     }
@@ -47,6 +68,11 @@ export default function ReportsPage() {
     } catch {
       setError('Failed to delete report');
     }
+  };
+
+  const handleEditReport = (report: ProgressReportItem) => {
+    setSelectedReport(report);
+    setShowEditReport(true);
   };
 
   useEffect(() => {
@@ -89,14 +115,25 @@ export default function ReportsPage() {
         <h2 className="text-2xl font-bold text-slate-900">Progress Reports</h2>
         {selectedInternshipId && (
           <button
-            onClick={() => setShowAddReport(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+            onClick={() => {
+              if (!canAddReport) {
+                return;
+              }
+              setShowAddReport(true);
+            }}
+            disabled={!canAddReport}
+            title={!canAddReport ? addReportDisabledMessage : 'Add report'}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <FileText className="h-4 w-4" />
             Add Report
           </button>
         )}
       </div>
+
+      {!canAddReport && selectedInternshipId && addReportDisabledMessage && (
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-700">{addReportDisabledMessage}</p>
+      )}
 
       {error && <p className="rounded-xl bg-rose-50 p-4 text-rose-700">{error}</p>}
       {success && (
@@ -109,7 +146,10 @@ export default function ReportsPage() {
         <label className="mb-2 block text-sm font-semibold text-slate-700">Select Internship</label>
         <select
           value={selectedInternshipId}
-          onChange={(e) => setSelectedInternshipId(e.target.value)}
+          onChange={(e) => {
+            setSelectedInternshipId(e.target.value);
+            setSearchParams({ internshipId: e.target.value });
+          }}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
         >
           {internships.map((internship) => (
@@ -120,9 +160,9 @@ export default function ReportsPage() {
         </select>
       </div>
 
-      {loading ? <p className="text-slate-600">Loading reports...</p> : <ReportList reports={reports} onDelete={handleDeleteReport} />}
+      {loading ? <p className="text-slate-600">Loading reports...</p> : <ReportList reports={reports} onEdit={handleEditReport} onDelete={handleDeleteReport} />}
 
-      {showAddReport && selectedInternshipId && (
+      {showAddReport && selectedInternshipId && canAddReport && (
         <AddReport
           internshipId={selectedInternshipId}
           internshipStartDate={selectedInternship?.startDate}
@@ -132,6 +172,25 @@ export default function ReportsPage() {
             setShowAddReport(false);
             fetchReports(selectedInternshipId);
             setSuccess('Progress report submitted successfully');
+            setTimeout(() => setSuccess(''), 2500);
+          }}
+        />
+      )}
+
+      {showEditReport && selectedReport && selectedInternship && (
+        <EditReport
+          report={selectedReport}
+          internshipStartDate={selectedInternship.startDate}
+          internshipEndDate={selectedInternship.endDate}
+          onClose={() => {
+            setShowEditReport(false);
+            setSelectedReport(null);
+          }}
+          onSuccess={() => {
+            setShowEditReport(false);
+            setSelectedReport(null);
+            fetchReports(selectedInternshipId);
+            setSuccess('Progress report updated successfully');
             setTimeout(() => setSuccess(''), 2500);
           }}
         />

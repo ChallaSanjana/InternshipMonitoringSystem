@@ -1,4 +1,5 @@
 import { Award, ClipboardList, Download, FileText, Trash2 } from 'lucide-react';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 export interface InternshipFileItem {
   _id: string;
@@ -77,7 +78,7 @@ export default function FileList({ files, loading = false, onDownload, onDelete,
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
                   {typeLabel(file.fileType)}
                 </span>
-                <span>Uploaded {new Date(file.createdAt).toLocaleDateString()}</span>
+                <span>Uploaded {formatDisplayDate(file.createdAt)}</span>
               </div>
             </div>
           </div>

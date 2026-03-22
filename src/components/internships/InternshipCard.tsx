@@ -1,5 +1,10 @@
 import { CalendarDays, FileText, Trash2 } from 'lucide-react';
-import { getDateBasedStatus, getStatusBadgeClass, getStatusLabel } from '../../utils/internshipStatus';
+import { formatDisplayDate } from '../../utils/dateFormat';
+import {
+  getInternshipDisplayStatus,
+  getInternshipDisplayStatusBadgeClass,
+  getInternshipDisplayStatusLabel
+} from '../../utils/internshipStatus';
 
 export interface InternshipItem {
   _id: string;
@@ -7,7 +12,7 @@ export interface InternshipItem {
   role?: string;
   position?: string;
   mode?: 'online' | 'offline' | 'hybrid';
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  status: 'pending' | 'approved' | 'rejected';
   startDate: string;
   endDate: string;
 }
@@ -20,7 +25,14 @@ interface InternshipCardProps {
 }
 
 export default function InternshipCard({ internship, onAddReport, onUploadFile, onDelete }: InternshipCardProps) {
-  const derivedStatus = getDateBasedStatus(internship.startDate, internship.endDate);
+  const isApproved = internship.status === 'approved';
+  const canUploadFile = internship.status !== 'rejected';
+  const displayStatus = getInternshipDisplayStatus(internship.status, internship.startDate, internship.endDate);
+  const statusLabel = getInternshipDisplayStatusLabel(displayStatus);
+  const statusClass = getInternshipDisplayStatusBadgeClass(displayStatus);
+
+  const reportDisabledReason = 'Reports can be added only after internship approval';
+  const uploadDisabledReason = 'Uploads are disabled because this internship was rejected';
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -33,8 +45,8 @@ export default function InternshipCard({ internship, onAddReport, onUploadFile, 
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`rounded-full border px-3 py-1 text-xs font-bold tracking-wide ${getStatusBadgeClass(derivedStatus)}`}>
-            {getStatusLabel(derivedStatus)}
+          <span className={`rounded-full border px-3 py-1 text-xs font-bold tracking-wide ${statusClass}`}>
+            {statusLabel}
           </span>
           <button
             onClick={() => onDelete(internship._id)}
@@ -48,24 +60,29 @@ export default function InternshipCard({ internship, onAddReport, onUploadFile, 
 
       <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
         <CalendarDays className="h-4 w-4" />
-        {new Date(internship.startDate).toLocaleDateString()} - {new Date(internship.endDate).toLocaleDateString()}
+        {formatDisplayDate(internship.startDate)} - {formatDisplayDate(internship.endDate)}
       </div>
 
       <div className="mt-5 flex items-center gap-3">
         <button
           onClick={() => onAddReport(internship._id)}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+          disabled={!isApproved}
+          title={!isApproved ? reportDisabledReason : 'Add a progress report'}
+          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <FileText className="h-4 w-4" />
           Add Report
         </button>
         <button
           onClick={() => onUploadFile(internship._id)}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          disabled={!canUploadFile}
+          title={!canUploadFile ? uploadDisabledReason : 'Upload supporting file'}
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Upload File
         </button>
       </div>
+
     </article>
   );
 }

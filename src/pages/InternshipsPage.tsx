@@ -39,6 +39,23 @@ export default function InternshipsPage() {
     fetchInternships();
   }, []);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      fetchInternships();
+    }, 20000);
+
+    const handleFocus = () => {
+      fetchInternships();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
   const fetchFilesForInternship = async (internshipId: string) => {
     try {
       setFilesLoading((prev) => ({ ...prev, [internshipId]: true }));
@@ -53,9 +70,11 @@ export default function InternshipsPage() {
 
   useEffect(() => {
     internships.forEach((internship) => {
-      fetchFilesForInternship(internship._id);
+      if (!filesByInternship[internship._id]) {
+        fetchFilesForInternship(internship._id);
+      }
     });
-  }, [internships]);
+  }, [internships, filesByInternship]);
 
   const handleDownload = async (fileId: string, fileName: string) => {
     try {

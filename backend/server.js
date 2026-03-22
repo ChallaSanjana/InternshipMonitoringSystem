@@ -11,6 +11,7 @@ dotenv.config();
 import authRoutes from './routes/auth.js';
 import studentRoutes from './routes/student.js';
 import adminRoutes from './routes/admin.js';
+import notificationRoutes from './routes/notification.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -41,6 +42,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

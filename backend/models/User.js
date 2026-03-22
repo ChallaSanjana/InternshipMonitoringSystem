@@ -28,6 +28,35 @@ const userSchema = new mongoose.Schema(
     },
     department: String,
     semester: Number,
+    profileImage: {
+      type: String,
+      default: ''
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    collegeName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    linkedin: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    github: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    about: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     createdAt: {
       type: Date,
       default: Date.now

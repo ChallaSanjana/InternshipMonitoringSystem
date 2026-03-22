@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { adminAPI } from '../lib/api';
-import { LogOut, Users, Briefcase, FileText, CheckCircle, Clock } from 'lucide-react';
-import { type DateBasedStatus, getDateBasedStatus, getStatusBadgeClass, getStatusLabel } from '../utils/internshipStatus';
+import { useEffect, useMemo, useState } from 'react';
+import { Users, Briefcase, FileText, Trash2 } from 'lucide-react';
+import { adminAPI, getFilePreviewUrl } from '../lib/api';
+import { formatDisplayDate } from '../utils/dateFormat';
+import { Link, useLocation } from 'react-router-dom';
 
 interface Student {
   _id: string;
@@ -25,6 +25,13 @@ interface Internship {
   status: 'pending' | 'approved' | 'rejected';
   startDate: string;
   endDate: string;
+  files?: {
+    _id: string;
+    fileName: string;
+    fileUrl: string;
+    fileType: 'offer_letter' | 'report' | 'certificate';
+    createdAt: string;
+  }[];
 }
 
 interface Report {
@@ -47,394 +54,427 @@ interface Report {
   adminFeedback?: string;
 }
 
-interface DashboardStats {
-  totalStudents: number;
-  totalInternships: number;
-  pendingInternships: number;
-  approvedInternships: number;
-  totalReports: number;
-}
-
 export default function AdminDashboard() {
-  const { user, signOut } = useAuth();
-  const [tabs, setTabs] = useState<'overview' | 'students' | 'internships' | 'reports'>('overview');
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const location = useLocation();
   const [students, setStudents] = useState<Student[]>([]);
   const [internships, setInternships] = useState<Internship[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [feedbackInputs, setFeedbackInputs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [feedbackModal, setFeedbackModal] = useState<{ internshipId?: string; reportId?: string; open: boolean }>({ open: false });
-  const [feedbackText, setFeedbackText] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      const [studentsRes, internshipsRes, reportsRes] = await Promise.all([
+        adminAPI.getAllStudents(),
+        adminAPI.getAllInternships(),
+        adminAPI.getAllReports()
+      ]);
+
+      setStudents(studentsRes.data.students || []);
+      setInternships(internshipsRes.data.internships || []);
+      setReports(reportsRes.data.reports || []);
+      setError('');
+    } catch {
+      setError('Failed to load admin panel data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetchStats();
+    fetchAllData();
   }, []);
 
-  useEffect(() => {
-    if (tabs === 'students') fetchStudents();
-    else if (tabs === 'internships') fetchInternships();
-    else if (tabs === 'reports') fetchReports();
-  }, [tabs]);
+  const currentSection: 'overview' | 'students' | 'internships' | 'reports' =
+    location.pathname === '/admin/students'
+      ? 'students'
+      : location.pathname === '/admin/internships'
+        ? 'internships'
+        : location.pathname === '/admin/reports'
+          ? 'reports'
+          : 'overview';
 
-  const fetchStats = async () => {
+  const stats = useMemo(() => {
+    const pending = internships.filter((item) => item.status === 'pending').length;
+    const approved = internships.filter((item) => item.status === 'approved').length;
+    const rejected = internships.filter((item) => item.status === 'rejected').length;
+
+    return {
+      totalStudents: students.length,
+      totalInternships: internships.length,
+      pendingInternships: pending,
+      approvedInternships: approved,
+      rejectedInternships: rejected,
+      totalReports: reports.length
+    };
+  }, [internships, reports, students]);
+
+  const handleUpdateInternshipStatus = async (internshipId: string, status: 'approved' | 'rejected') => {
     try {
-      const response = await adminAPI.getDashboardStats();
-      setStats(response.data.stats);
+      await adminAPI.updateInternshipStatus(internshipId, status);
+      setInternships((prev) => prev.map((item) => (item._id === internshipId ? { ...item, status } : item)));
+      setSuccess(`Internship ${status === 'approved' ? 'approved' : 'rejected'} successfully`);
+      setTimeout(() => setSuccess(''), 2500);
       setError('');
-    } catch (err) {
-      setError('Failed to fetch stats');
+    } catch {
+      setError('Failed to update internship status');
     }
   };
 
-  const fetchStudents = async () => {
+  const handleFeedbackChange = (reportId: string, value: string) => {
+    setFeedbackInputs((prev) => ({ ...prev, [reportId]: value }));
+  };
+
+  const handleReportFeedbackSubmit = async (reportId: string) => {
+    const feedback = (feedbackInputs[reportId] || '').trim();
+
+    if (!feedback) {
+      setError('Please enter feedback before submitting');
+      return;
+    }
+
     try {
-      setLoading(true);
-      const response = await adminAPI.getAllStudents();
-      setStudents(response.data.students);
+      const response = await adminAPI.updateReportFeedback(reportId, feedback);
+      const updatedReport = response.data.report;
+      setReports((prev) => prev.map((item) => (item._id === reportId ? { ...item, adminFeedback: updatedReport.adminFeedback } : item)));
+      setFeedbackInputs((prev) => ({ ...prev, [reportId]: '' }));
+      setSuccess('Feedback submitted successfully');
+      setTimeout(() => setSuccess(''), 2500);
       setError('');
-    } catch (err) {
-      setError('Failed to fetch students');
-    } finally {
-      setLoading(false);
+    } catch {
+      setError('Failed to submit report feedback');
     }
   };
 
-  const fetchInternships = async () => {
+  const handleDeleteReportFeedback = async (reportId: string) => {
     try {
-      setLoading(true);
-      const response = await adminAPI.getAllInternships();
-      setInternships(response.data.internships);
+      await adminAPI.deleteReportFeedback(reportId);
+      setReports((prev) => prev.map((item) => (item._id === reportId ? { ...item, adminFeedback: '' } : item)));
+      setSuccess('Feedback deleted successfully');
+      setTimeout(() => setSuccess(''), 2500);
       setError('');
-    } catch (err) {
-      setError('Failed to fetch internships');
-    } finally {
-      setLoading(false);
+    } catch {
+      setError('Failed to delete report feedback');
     }
   };
 
-  const fetchReports = async () => {
-    try {
-      setLoading(true);
-      const response = await adminAPI.getAllReports();
-      setReports(response.data.reports);
-      setError('');
-    } catch (err) {
-      setError('Failed to fetch reports');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleApproveInternship = async (internshipId: string, feedback: string = '') => {
-    try {
-      await adminAPI.approveInternship(internshipId, feedback);
-      fetchInternships();
-      setFeedbackModal({ open: false });
-      setFeedbackText('');
-    } catch (err) {
-      setError('Failed to approve internship');
-    }
-  };
-
-  const handleRejectInternship = async (internshipId: string) => {
-    try {
-      await adminAPI.rejectInternship(internshipId, feedbackText || 'Application rejected');
-      fetchInternships();
-      setFeedbackModal({ open: false });
-      setFeedbackText('');
-    } catch (err) {
-      setError('Failed to reject internship');
-    }
-  };
-
-  const handleGiveFeedback = async (reportId: string) => {
-    try {
-      await adminAPI.feedbackOnReport(reportId, feedbackText);
-      fetchReports();
-      setFeedbackModal({ open: false });
-      setFeedbackText('');
-    } catch (err) {
-      setError('Failed to give feedback');
-    }
-  };
-
-  const getStatusIcon = (status: DateBasedStatus) => {
+  const getInternshipStatusBadgeClass = (status: Internship['status']) => {
     switch (status) {
-      case 'active':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'completed':
-        return <CheckCircle className="w-5 h-5 text-violet-500" />;
+      case 'approved':
+        return 'bg-emerald-100 text-emerald-700 border-emerald-300';
+      case 'rejected':
+        return 'bg-rose-100 text-rose-700 border-rose-300';
       default:
-        return <Clock className="w-5 h-5 text-yellow-500" />;
+        return 'bg-amber-100 text-amber-700 border-amber-300';
     }
+  };
+
+  const getInternshipStatusLabel = (status: Internship['status']) => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-            <p className="text-gray-600 mt-1">Welcome, {user?.name}</p>
-          </div>
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">
+            {currentSection === 'overview' && 'Admin Dashboard'}
+            {currentSection === 'students' && 'Students'}
+            {currentSection === 'internships' && 'Internships'}
+            {currentSection === 'reports' && 'Reports'}
+          </h2>
+          <p className="text-sm text-slate-600">
+            {currentSection === 'overview' && 'Overview of your internship monitoring system.'}
+            {currentSection === 'students' && 'Manage student records in your system.'}
+            {currentSection === 'internships' && 'Review and update internship statuses.'}
+            {currentSection === 'reports' && 'Review progress reports and provide feedback.'}
+          </p>
         </div>
-      </header>
+        <button
+          onClick={fetchAllData}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          Refresh
+        </button>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
             {error}
           </div>
         )}
+        {success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">{success}</div>}
 
-        {/* Tabs */}
-        <div className="mb-6 border-b border-gray-200">
-          <div className="flex gap-4">
-            {(['overview', 'students', 'internships', 'reports'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setTabs(tab)}
-                className={`px-6 py-3 font-semibold border-b-2 transition capitalize ${
-                  tabs === tab
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Overview Tab */}
-        {tabs === 'overview' && stats && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="bg-white rounded-lg shadow p-6">
+        {currentSection === 'overview' && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Total Students</p>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">{stats.totalStudents}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Students</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalStudents}</p>
                 </div>
-                <Users className="w-12 h-12 text-blue-500" />
+                <Users className="h-9 w-9 text-blue-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Total Internships</p>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">{stats.totalInternships}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Internships</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{stats.totalInternships}</p>
                 </div>
-                <Briefcase className="w-12 h-12 text-indigo-500" />
+                <Briefcase className="h-9 w-9 text-indigo-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Pending</p>
-                  <p className="text-3xl font-bold text-yellow-600 mt-2">{stats.pendingInternships}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending</p>
+                  <p className="mt-2 text-3xl font-bold text-amber-700">{stats.pendingInternships}</p>
                 </div>
-                <Briefcase className="w-12 h-12 text-yellow-500" />
+                <Briefcase className="h-9 w-9 text-amber-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Approved</p>
-                  <p className="text-3xl font-bold text-green-600 mt-2">{stats.approvedInternships}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Approved</p>
+                  <p className="mt-2 text-3xl font-bold text-emerald-700">{stats.approvedInternships}</p>
                 </div>
-                <CheckCircle className="w-12 h-12 text-green-500" />
+                <Briefcase className="h-9 w-9 text-emerald-500" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-600 text-sm">Reports</p>
-                  <p className="text-3xl font-bold text-purple-600 mt-2">{stats.totalReports}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rejected</p>
+                  <p className="mt-2 text-3xl font-bold text-rose-700">{stats.rejectedInternships}</p>
                 </div>
-                <FileText className="w-12 h-12 text-purple-500" />
+                <Briefcase className="h-9 w-9 text-rose-500" />
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reports</p>
+                  <p className="mt-2 text-3xl font-bold text-violet-700">{stats.totalReports}</p>
+                </div>
+                <FileText className="h-9 w-9 text-violet-500" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:col-span-3 xl:col-span-6">
+              <p className="text-sm text-slate-700">
+                You are managing {stats.totalStudents} student{stats.totalStudents === 1 ? '' : 's'} and {stats.totalInternships} internship{stats.totalInternships === 1 ? '' : 's'}.
+              </p>
             </div>
           </div>
         )}
 
-        {/* Students Tab */}
-        {tabs === 'students' && (
-          <div>
-            {loading && <p className="text-center text-gray-600">Loading...</p>}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+        {currentSection === 'students' && (
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
               <table className="min-w-full">
-                <thead className="bg-gray-100">
+                <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Department</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Semester</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Name</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Email</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Department</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Semester</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {students.map(student => (
-                    <tr key={student._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-800">{student.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{student.email}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{student.department || '-'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{student.semester || '-'}</td>
+                <tbody className="divide-y divide-slate-100">
+                  {students.map((student) => (
+                    <tr key={student._id}>
+                      <td className="px-5 py-4 text-sm font-medium text-slate-800">{student.name}</td>
+                      <td className="px-5 py-4 text-sm text-slate-600">{student.email}</td>
+                      <td className="px-5 py-4 text-sm text-slate-600">{student.department || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-slate-600">{student.semester || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        <Link
+                          to={`/admin/students/${student._id}`}
+                          className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          View Details
+                        </Link>
+                      </td>
                     </tr>
                   ))}
+                  {!loading && students.length === 0 && (
+                    <tr>
+                      <td className="px-5 py-8 text-center text-sm text-slate-500" colSpan={5}>No students found.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
 
-        {/* Internships Tab */}
-        {tabs === 'internships' && (
-          <div>
-            {loading && <p className="text-center text-gray-600">Loading...</p>}
-            <div className="space-y-4">
-              {internships.map(internship => {
-                const derivedStatus = getDateBasedStatus(internship.startDate, internship.endDate);
-
-                return (
-                <div key={internship._id} className="bg-white rounded-lg shadow p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800">{internship.companyName}</h3>
-                      <p className="text-gray-600">{internship.role || internship.position}</p>
-                      <p className="text-sm text-gray-500 mt-1">By: {internship.studentId.name} ({internship.studentId.email})</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(derivedStatus)}
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusBadgeClass(derivedStatus)}`}>
-                        {getStatusLabel(derivedStatus)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {derivedStatus === 'pending' && (
-                    <div className="flex gap-4 mt-4">
-                      <button
-                        onClick={() => handleApproveInternship(internship._id)}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => setFeedbackModal({ internshipId: internship._id, open: true })}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
-                      >
-                        Reject
-                      </button>
-                    </div>
+        {currentSection === 'internships' && (
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Student</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Company</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Role</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Dates</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Proof Files</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Status</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {internships.map((internship) => (
+                    <tr key={internship._id}>
+                      <td className="px-5 py-4 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-800">{internship.studentId?.name || '-'}</p>
+                        <p className="text-xs text-slate-500">{internship.studentId?.email || '-'}</p>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-700">{internship.companyName}</td>
+                      <td className="px-5 py-4 text-sm text-slate-700">{internship.role || internship.position || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-slate-700">
+                        {formatDisplayDate(internship.startDate)} - {formatDisplayDate(internship.endDate)}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-700">
+                        {(internship.files || []).length === 0 ? (
+                          <span className="text-xs text-slate-500">No files</span>
+                        ) : (
+                          <div className="space-y-1">
+                            {(internship.files || []).map((file) => (
+                              <a
+                                key={file._id}
+                                href={getFilePreviewUrl(file.fileUrl)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block max-w-56 truncate text-xs font-semibold text-blue-700 underline-offset-2 hover:underline"
+                                title={file.fileName}
+                              >
+                                {file.fileName}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-sm">
+                        <span className={`rounded-full border px-3 py-1 text-xs font-bold ${getInternshipStatusBadgeClass(internship.status)}`}>
+                          {getInternshipStatusLabel(internship.status)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-sm">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleUpdateInternshipStatus(internship._id, 'approved')}
+                            disabled={internship.status === 'approved'}
+                            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleUpdateInternshipStatus(internship._id, 'rejected')}
+                            disabled={internship.status === 'rejected'}
+                            className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {!loading && internships.length === 0 && (
+                    <tr>
+                      <td className="px-5 py-8 text-center text-sm text-slate-500" colSpan={7}>No internships found.</td>
+                    </tr>
                   )}
-                </div>
-                );
-              })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
-        {/* Reports Tab */}
-        {tabs === 'reports' && (
-          <div>
-            {loading && <p className="text-center text-gray-600">Loading...</p>}
-            <div className="space-y-4">
-              {reports.map(report => (
-                <div key={report._id} className="bg-white rounded-lg shadow p-6">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800">{new Date(report.date).toLocaleDateString()}</h3>
-                      <p className="text-sm text-gray-600 mt-1">By: {report.studentId.name} ({report.studentId.email})</p>
-                      <p className="text-sm text-gray-600">Internship: {report.internshipId.companyName} - {report.internshipId.role || report.internshipId.position}</p>
-                      <p className="text-sm text-gray-700 mt-2">{report.description}</p>
-                    </div>
-                    <span className="px-3 py-1 rounded-full text-sm font-semibold border bg-blue-50 text-blue-700 border-blue-200">
-                      {report.hoursWorked} hours
-                    </span>
-                  </div>
-
-                  {!report.adminFeedback && (
-                    <button
-                      onClick={() => setFeedbackModal({ reportId: report._id, open: true })}
-                      className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-                    >
-                      Give Feedback
-                    </button>
+        {currentSection === 'reports' && (
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Date</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Student</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Internship</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Hours</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Description</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Feedback</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {reports.map((report) => (
+                    <tr key={report._id}>
+                      <td className="px-5 py-4 text-sm text-slate-700">{formatDisplayDate(report.date)}</td>
+                      <td className="px-5 py-4 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-800">{report.studentId?.name || '-'}</p>
+                        <p className="text-xs text-slate-500">{report.studentId?.email || '-'}</p>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-700">
+                        {report.internshipId?.companyName || '-'}
+                        <p className="text-xs text-slate-500">{report.internshipId?.role || report.internshipId?.position || '-'}</p>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-semibold text-slate-800">{report.hoursWorked}</td>
+                      <td className="px-5 py-4 text-sm text-slate-700">{report.description}</td>
+                      <td className="px-5 py-4 text-sm">
+                        <div className="space-y-2">
+                          {report.adminFeedback && (
+                            <div className="flex items-start justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+                              <p className="text-xs text-blue-700">{report.adminFeedback}</p>
+                              <button
+                                onClick={() => handleDeleteReportFeedback(report._id)}
+                                title="Delete feedback"
+                                className="rounded-md p-1 text-rose-600 transition hover:bg-rose-100 hover:text-rose-700"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={feedbackInputs[report._id] || ''}
+                              onChange={(e) => handleFeedbackChange(report._id, e.target.value)}
+                              placeholder="Add feedback"
+                              className="w-52 rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            />
+                            <button
+                              onClick={() => handleReportFeedbackSubmit(report._id)}
+                              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                            >
+                              Submit
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {!loading && reports.length === 0 && (
+                    <tr>
+                      <td className="px-5 py-8 text-center text-sm text-slate-500" colSpan={6}>No reports found.</td>
+                    </tr>
                   )}
-                </div>
-              ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
       </main>
-
-      {/* Feedback Modal */}
-      {feedbackModal.open && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-800">
-                {feedbackModal.internshipId ? 'Internship Feedback' : 'Report Feedback'}
-              </h2>
-            </div>
-
-            <div className="p-6">
-              <textarea
-                value={feedbackText}
-                onChange={(e) => setFeedbackText(e.target.value)}
-                rows={4}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter your feedback..."
-              />
-
-              <div className="flex gap-4 justify-end mt-6">
-                <button
-                  onClick={() => setFeedbackModal({ open: false })}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                {feedbackModal.internshipId ? (
-                  <>
-                    <button
-                      onClick={() => handleApproveInternship(feedbackModal.internshipId!, feedbackText)}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleRejectInternship(feedbackModal.internshipId!)}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-                    >
-                      Reject
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => handleGiveFeedback(feedbackModal.reportId!)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-                  >
-                    Send Feedback
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

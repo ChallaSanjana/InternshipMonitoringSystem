@@ -9,6 +9,12 @@ interface User {
   role: 'student' | 'admin';
   department?: string;
   semester?: number;
+  profileImage?: string;
+  phoneNumber?: string;
+  collegeName?: string;
+  linkedin?: string;
+  github?: string;
+  about?: string;
 }
 
 interface AuthContextType {
@@ -17,7 +23,8 @@ interface AuthContextType {
   signUp: (name: string, email: string, password: string, role?: 'admin' | 'student', department?: string, semester?: number) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-}
+  updateUserProfile: (userData: Partial<User>) => void;
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -85,8 +92,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const updateUserProfile = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

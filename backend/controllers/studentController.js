@@ -1,11 +1,32 @@
 import Internship from '../models/Internship.js';
 import ProgressReport from '../models/ProgressReport.js';
 import File from '../models/File.js';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const createAdminNotifications = async ({ title, message, internshipId, type }) => {
+  const admins = await User.find({ role: 'admin' }).select('_id');
+
+  if (admins.length === 0) {
+    return;
+  }
+
+  const payload = admins.map((admin) => ({
+    userId: admin._id,
+    role: 'admin',
+    internshipId,
+    title,
+    message,
+    type
+  }));
+
+  await Notification.insertMany(payload);
+};
 
 // Internship Controllers
 export const addInternship = async (req, res) => {
@@ -34,6 +55,20 @@ export const addInternship = async (req, res) => {
     mentorName,
     mentorEmail
   });
+
+  const student = await User.findById(req.user.id).select('name');
+  const roleName = normalizedRole || 'Intern';
+
+  try {
+    await createAdminNotifications({
+      title: 'New Internship Submitted',
+      message: `${student?.name || 'A student'} submitted internship at ${companyName} (${roleName}) for approval.`,
+      internshipId: internship._id,
+      type: 'new_internship_submitted'
+    });
+  } catch (error) {
+    console.error('Failed to create admin internship notification:', error.message);
+  }
 
   res.status(201).json({
     success: true,
@@ -176,6 +211,19 @@ export const submitReport = async (req, res) => {
     hoursWorked
   });
 
+  const student = await User.findById(req.user.id).select('name');
+
+  try {
+    await createAdminNotifications({
+      title: 'New Report Submitted',
+      message: `${student?.name || 'A student'} submitted a new progress report for ${internship.companyName}.`,
+      internshipId,
+      type: 'new_report_submitted'
+    });
+  } catch (error) {
+    console.error('Failed to create admin report notification:', error.message);
+  }
+
   res.status(201).json({
     success: true,
     report
@@ -213,6 +261,51 @@ export const deleteReport = async (req, res) => {
   });
 };
 
+export const updateReport = async (req, res) => {
+  const { date, description, hoursWorked } = req.body;
+
+  if (!date || !description || hoursWorked === undefined) {
+    return res.status(400).json({ error: 'Please provide date, description and hoursWorked' });
+  }
+
+  const report = await ProgressReport.findById(req.params.id);
+
+  if (!report || report.studentId.toString() !== req.user.id) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  const internship = await Internship.findById(report.internshipId);
+  if (!internship) {
+    return res.status(404).json({ error: 'Internship not found' });
+  }
+
+  const reportDate = new Date(date);
+  if (Number.isNaN(reportDate.getTime())) {
+    return res.status(400).json({ error: 'Invalid report date' });
+  }
+
+  const normalizedReportDate = new Date(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate()).getTime();
+  const internshipStart = new Date(internship.startDate);
+  const normalizedStart = new Date(internshipStart.getFullYear(), internshipStart.getMonth(), internshipStart.getDate()).getTime();
+  const internshipEnd = new Date(internship.endDate);
+  const normalizedEnd = new Date(internshipEnd.getFullYear(), internshipEnd.getMonth(), internshipEnd.getDate()).getTime();
+
+  if (normalizedReportDate < normalizedStart || normalizedReportDate > normalizedEnd) {
+    return res.status(400).json({ error: 'Report date must be between internship start date and end date' });
+  }
+
+  const updatedReport = await ProgressReport.findByIdAndUpdate(
+    req.params.id,
+    { date, description, hoursWorked },
+    { new: true, runValidators: true }
+  );
+
+  return res.json({
+    success: true,
+    report: updatedReport
+  });
+};
+
 // File Controllers
 export const uploadFile = async (req, res) => {
   const { internshipId, fileType } = req.body;
@@ -237,6 +330,19 @@ export const uploadFile = async (req, res) => {
     fileUrl: `/uploads/${req.file.filename}`,
     fileType
   });
+
+  const student = await User.findById(req.user.id).select('name');
+
+  try {
+    await createAdminNotifications({
+      title: 'New File Uploaded',
+      message: `${student?.name || 'A student'} uploaded ${req.file.originalname} for ${internship.companyName}.`,
+      internshipId,
+      type: 'new_file_uploaded'
+    });
+  } catch (error) {
+    console.error('Failed to create admin file notification:', error.message);
+  }
 
   res.status(201).json({
     success: true,

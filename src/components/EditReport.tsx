@@ -3,27 +3,35 @@ import { studentAPI } from '../lib/api';
 import { X } from 'lucide-react';
 import { formatDisplayDate } from '../utils/dateFormat';
 
-interface AddReportProps {
-  internshipId: string;
+export interface ProgressReportItem {
+  _id: string;
+  date: string;
+  description: string;
+  hoursWorked: number;
+  createdAt: string;
+}
+
+interface EditReportProps {
+  report: ProgressReportItem;
   internshipStartDate?: string;
   internshipEndDate?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function AddReport({
-  internshipId,
+export default function EditReport({
+  report,
   internshipStartDate,
   internshipEndDate,
   onClose,
   onSuccess
-}: AddReportProps) {
+}: EditReportProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    date: '',
-    description: '',
-    hoursWorked: ''
+    date: report.date.split('T')[0],
+    description: report.description,
+    hoursWorked: report.hoursWorked.toString()
   });
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -53,22 +61,16 @@ export default function AddReport({
     setLoading(true);
 
     try {
-      await studentAPI.submitReport({
-        internshipId,
+      await studentAPI.updateReport(report._id, {
         date: formData.date,
         description: formData.description,
         hoursWorked: Number(formData.hoursWorked)
       });
 
-      setFormData({
-        date: '',
-        description: '',
-        hoursWorked: ''
-      });
       onSuccess();
       onClose();
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to submit report';
+      const errorMsg = err instanceof Error ? err.message : 'Failed to update report';
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -79,7 +81,7 @@ export default function AddReport({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white">
-          <h2 className="text-2xl font-bold text-gray-800">Submit Progress Report</h2>
+          <h2 className="text-2xl font-bold text-gray-800">Edit Progress Report</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -149,20 +151,20 @@ export default function AddReport({
             />
           </div>
 
-          <div className="flex gap-4 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-            >
-              Cancel
-            </button>
+          <div className="flex gap-3 pt-4">
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition"
+              className="flex-1 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Submitting...' : 'Submit Report'}
+              {loading ? 'Updating...' : 'Update Report'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              Cancel
             </button>
           </div>
         </form>

@@ -4,7 +4,13 @@ import { studentAPI } from '../lib/api';
 import { LogOut, Plus, FileText, CheckCircle, Clock, XCircle, Trash2 } from 'lucide-react';
 import AddInternship from './AddInternship';
 import AddReport from './AddReport';
-import { type DateBasedStatus, getDateBasedStatus, getStatusBadgeClass, getStatusLabel } from '../utils/internshipStatus';
+import {
+  getInternshipDisplayStatus,
+  getInternshipDisplayStatusBadgeClass,
+  getInternshipDisplayStatusLabel,
+  type InternshipDisplayStatus
+} from '../utils/internshipStatus';
+import { formatDisplayDate } from '../utils/dateFormat';
 
 interface Internship {
   _id: string;
@@ -15,7 +21,6 @@ interface Internship {
   startDate: string;
   endDate: string;
   status: 'pending' | 'approved' | 'rejected';
-  adminFeedback?: string;
 }
 
 interface Report {
@@ -103,11 +108,13 @@ export default function StudentDashboard() {
     }
   };
 
-  const getStatusIcon = (status: DateBasedStatus) => {
+  const getStatusIcon = (status: InternshipDisplayStatus) => {
     switch (status) {
       case 'active':
         return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'completed':
+        return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'rejected':
         return <XCircle className="w-5 h-5 text-red-500" />;
       default:
         return <Clock className="w-5 h-5 text-yellow-500" />;
@@ -206,7 +213,7 @@ export default function StudentDashboard() {
 
             <div className="grid gap-6">
               {internships.map((internship) => {
-                const derivedStatus = getDateBasedStatus(internship.startDate, internship.endDate);
+                const displayStatus = getInternshipDisplayStatus(internship.status, internship.startDate, internship.endDate);
 
                 return (
                 <div key={internship._id} className="bg-white rounded-lg shadow p-6">
@@ -216,9 +223,9 @@ export default function StudentDashboard() {
                       <p className="text-gray-600">{internship.role || internship.position}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {getStatusIcon(derivedStatus)}
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusBadgeClass(derivedStatus)}`}>
-                        {getStatusLabel(derivedStatus)}
+                      {getStatusIcon(displayStatus)}
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${getInternshipDisplayStatusBadgeClass(displayStatus)}`}>
+                        {getInternshipDisplayStatusLabel(displayStatus)}
                       </span>
                     </div>
                   </div>
@@ -226,24 +233,17 @@ export default function StudentDashboard() {
                   <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
                     <div>
                       <p className="text-gray-500">Start Date</p>
-                      <p className="text-gray-800 font-semibold">{new Date(internship.startDate).toLocaleDateString()}</p>
+                      <p className="text-gray-800 font-semibold">{formatDisplayDate(internship.startDate)}</p>
                     </div>
                     <div>
                       <p className="text-gray-500">End Date</p>
-                      <p className="text-gray-800 font-semibold">{new Date(internship.endDate).toLocaleDateString()}</p>
+                      <p className="text-gray-800 font-semibold">{formatDisplayDate(internship.endDate)}</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Mode</p>
                       <p className="text-gray-800 font-semibold capitalize">{internship.mode || '-'}</p>
                     </div>
                   </div>
-
-                  {internship.adminFeedback && (
-                    <div className="bg-blue-50 border border-blue-200 rounded p-4 mt-4">
-                      <p className="text-sm text-gray-600">Admin Feedback:</p>
-                      <p className="text-gray-800 mt-1">{internship.adminFeedback}</p>
-                    </div>
-                  )}
 
                   <button
                     onClick={() => {
@@ -320,7 +320,7 @@ export default function StudentDashboard() {
                 <div key={report._id} className="bg-white rounded-lg shadow p-6">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-800">{new Date(report.date).toLocaleDateString()}</h3>
+                      <h3 className="text-xl font-bold text-gray-800">{formatDisplayDate(report.date)}</h3>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="px-3 py-1 rounded-full text-sm font-semibold border bg-blue-50 text-blue-700 border-blue-200">
@@ -337,7 +337,7 @@ export default function StudentDashboard() {
                   </div>
 
                   <p className="text-gray-700 mb-2">{report.description}</p>
-                  <p className="text-gray-500 text-sm mb-4">Submitted on {new Date(report.createdAt).toLocaleDateString()}</p>
+                  <p className="text-gray-500 text-sm mb-4">Submitted on {formatDisplayDate(report.createdAt)}</p>
 
                   {report.adminFeedback && (
                     <div className="bg-blue-50 border border-blue-200 rounded p-4 mt-4">

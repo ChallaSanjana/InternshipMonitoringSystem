@@ -29,6 +29,32 @@ const progressReportSchema = new mongoose.Schema(
     adminFeedback: {
       type: String,
       default: ''
+    },
+    mentorReviewed: {
+      type: Boolean,
+      default: false
+    },
+    mentorReviewedAt: {
+      type: Date,
+      default: null
+    },
+    mentorReviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    mentorFeedback: {
+      type: String,
+      default: ''
+    },
+    mentorFeedbackAt: {
+      type: Date,
+      default: null
+    },
+    mentorFeedbackBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     }
   },
   { timestamps: true }

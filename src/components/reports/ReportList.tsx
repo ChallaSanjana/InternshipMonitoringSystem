@@ -8,6 +8,7 @@ export interface ProgressReportItem {
   hoursWorked: number;
   createdAt: string;
   adminFeedback?: string;
+  mentorFeedback?: string;
 }
 
 interface ReportListProps {
@@ -35,6 +36,7 @@ export default function ReportList({ reports, onEdit, onDelete }: ReportListProp
               <th className="px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-600">Description</th>
               <th className="px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-600">Hours Worked</th>
               <th className="px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-600">Admin Feedback</th>
+              <th className="px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-600">Mentor Feedback</th>
               <th className="px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-600">Actions</th>
             </tr>
           </thead>
@@ -51,6 +53,15 @@ export default function ReportList({ reports, onEdit, onDelete }: ReportListProp
                     </div>
                   ) : (
                     <span className="text-xs text-slate-500">No feedback yet</span>
+                  )}
+                </td>
+                <td className="px-5 py-4 text-sm">
+                  {report.mentorFeedback ? (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                      {report.mentorFeedback}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500">No mentor feedback yet</span>
                   )}
                 </td>
                 <td className="px-5 py-4 text-sm">

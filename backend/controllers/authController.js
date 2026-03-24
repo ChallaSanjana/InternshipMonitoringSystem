@@ -20,6 +20,10 @@ export const signup = async (req, res) => {
     return res.status(400).json({ error: 'Please provide all required fields' });
   }
 
+  if (role && role !== 'student') {
+    return res.status(403).json({ error: 'Public signup allows only student accounts' });
+  }
+
   // Check if user exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
@@ -31,7 +35,7 @@ export const signup = async (req, res) => {
     name,
     email,
     password,
-    role,
+    role: 'student',
     department,
     semester
   });

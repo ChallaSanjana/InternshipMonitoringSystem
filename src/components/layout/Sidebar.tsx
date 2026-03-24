@@ -1,8 +1,8 @@
-import { BarChart3, Briefcase, FileText, Shield, Users, User } from 'lucide-react';
+import { BarChart3, Briefcase, FileText, Shield, Users, User, UserCog } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 interface SidebarProps {
-  isAdmin: boolean;
+  role?: 'student' | 'admin' | 'mentor';
 }
 
 const baseItemClass = 'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all duration-300 ease-in-out transform-gpu';
@@ -24,12 +24,19 @@ const studentMenu: MenuItem[] = [
 const adminMenu: MenuItem[] = [
   { to: '/admin', label: 'Admin Dashboard', icon: Shield, end: true },
   { to: '/admin/students', label: 'Students', icon: Users },
+  { to: '/admin/mentors', label: 'Mentors', icon: UserCog },
   { to: '/admin/internships', label: 'Internships', icon: Briefcase },
   { to: '/admin/reports', label: 'Reports', icon: FileText }
 ];
 
-export default function Sidebar({ isAdmin }: SidebarProps) {
-  const menuItems = isAdmin ? adminMenu : studentMenu;
+const mentorMenu: MenuItem[] = [
+  { to: '/dashboard', label: 'Mentor Dashboard', icon: BarChart3, end: true },
+  { to: '/mentor/reports', label: 'Reports', icon: FileText },
+  { to: '/profile', label: 'Profile', icon: User }
+];
+
+export default function Sidebar({ role = 'student' }: SidebarProps) {
+  const menuItems = role === 'admin' ? adminMenu : role === 'mentor' ? mentorMenu : studentMenu;
 
   return (
     <aside className="w-full border-b border-slate-200 bg-white p-4 md:h-screen md:w-72 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r md:p-5">

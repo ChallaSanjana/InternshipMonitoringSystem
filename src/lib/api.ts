@@ -81,8 +81,15 @@ export const notificationAPI = {
 
 export const adminAPI = {
   getDashboardStats: () => api.get('/admin/dashboard/stats'),
+  addMentor: (data: Record<string, unknown>) => api.post('/admin/add-mentor', data),
+  getAllMentors: () => api.get('/admin/mentors'),
+  updateMentor: (mentorId: string, data: Record<string, unknown>) =>
+    api.put(`/admin/mentors/${mentorId}`, data),
   getAllStudents: () => api.get('/admin/students'),
+  assignMentorToStudent: (studentId: string, mentorId: string) =>
+    api.put(`/admin/students/${studentId}/mentor`, { mentorId }),
   getStudentDetails: (studentId: string) => api.get(`/admin/students/${studentId}`),
+  deleteStudent: (studentId: string) => api.delete(`/admin/students/${studentId}`),
   getAllInternships: () => api.get('/admin/internships'),
   updateInternshipStatus: (id: string, status: 'approve' | 'reject' | 'approved' | 'rejected') =>
     api.put(`/admin/internships/${id}/status`, { status }),
@@ -99,6 +106,15 @@ export const adminAPI = {
     api.delete(`/admin/reports/${id}/feedback`),
   feedbackOnReport: (id: string, feedback: string) =>
     api.put(`/admin/reports/${id}/feedback`, { feedback })
+};
+
+export const mentorAPI = {
+  getAssignedStudents: () => api.get('/mentor/students'),
+  getAssignedStudentDetails: (studentId: string) => api.get(`/mentor/students/${studentId}`),
+  getAssignedStudentReports: () => api.get('/mentor/reports'),
+  markReportReviewed: (reportId: string) => api.put(`/mentor/reports/${reportId}/review`),
+  addReportFeedback: (reportId: string, feedback: string) =>
+    api.put(`/mentor/reports/${reportId}/feedback`, { feedback })
 };
 
 export default api;

@@ -60,6 +60,88 @@ const notifyStudentOnReportFeedback = async (reportId) => {
   });
 };
 
+// Add mentor (admin only)
+export const addMentor = async (req, res) => {
+  const { name, email, password, department } = req.body;
+
+  const normalizedName = String(name || '').trim();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedPassword = String(password || '');
+  const normalizedDepartment = String(department || '').trim();
+
+  if (!normalizedName || !normalizedEmail || !normalizedPassword) {
+    return res.status(400).json({ error: 'Please provide name, email and password' });
+  }
+
+  if (normalizedPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  const existingUser = await User.findOne({ email: normalizedEmail });
+  if (existingUser) {
+    return res.status(400).json({ error: 'Email already registered' });
+  }
+
+  const mentor = await User.create({
+    name: normalizedName,
+    email: normalizedEmail,
+    password: normalizedPassword,
+    role: 'mentor',
+    department: normalizedDepartment
+  });
+
+  res.status(201).json({
+    success: true,
+    mentor: mentor.toJSON()
+  });
+};
+
+// Get all mentors (admin only)
+export const getAllMentors = async (req, res) => {
+  const mentors = await User.find({ role: 'mentor' }).sort({ createdAt: -1 });
+
+  res.json({
+    success: true,
+    mentors
+  });
+};
+
+// Update mentor (admin only)
+export const updateMentor = async (req, res) => {
+  const mentor = await User.findById(req.params.mentorId);
+
+  if (!mentor || mentor.role !== 'mentor') {
+    return res.status(404).json({ error: 'Mentor not found' });
+  }
+
+  const normalizedName = String(req.body.name || '').trim();
+  const normalizedEmail = String(req.body.email || '').trim().toLowerCase();
+  const normalizedDepartment = String(req.body.department || '').trim();
+
+  if (!normalizedName || !normalizedEmail) {
+    return res.status(400).json({ error: 'Please provide mentor name and email' });
+  }
+
+  const existingUser = await User.findOne({
+    email: normalizedEmail,
+    _id: { $ne: mentor._id }
+  });
+
+  if (existingUser) {
+    return res.status(400).json({ error: 'Email already registered' });
+  }
+
+  mentor.name = normalizedName;
+  mentor.email = normalizedEmail;
+  mentor.department = normalizedDepartment;
+  await mentor.save();
+
+  res.json({
+    success: true,
+    mentor: mentor.toJSON()
+  });
+};
+
 const rejectOverlappingPendingInternships = async (approvedInternship) => {
   if (!approvedInternship) {
     return;
@@ -83,7 +165,9 @@ const rejectOverlappingPendingInternships = async (approvedInternship) => {
 
 // Get all students
 export const getAllStudents = async (req, res) => {
-  const students = await User.find({ role: 'student' }).sort({ createdAt: -1 });
+  const students = await User.find({ role: 'student' })
+    .populate('mentorId', 'name email')
+    .sort({ createdAt: -1 });
 
   res.json({
     success: true,
@@ -91,9 +175,40 @@ export const getAllStudents = async (req, res) => {
   });
 };
 
+// Assign mentor to student
+export const assignMentorToStudent = async (req, res) => {
+  const { mentorId } = req.body;
+
+  if (!mentorId) {
+    return res.status(400).json({ error: 'Please provide mentorId' });
+  }
+
+  const student = await User.findById(req.params.studentId);
+  if (!student || student.role !== 'student') {
+    return res.status(404).json({ error: 'Student not found' });
+  }
+
+  const mentor = await User.findById(mentorId);
+  if (!mentor || mentor.role !== 'mentor') {
+    return res.status(404).json({ error: 'Mentor not found' });
+  }
+
+  student.mentorId = mentor._id;
+  await student.save();
+
+  const updatedStudent = await User.findById(student._id)
+    .populate('mentorId', 'name email');
+
+  res.json({
+    success: true,
+    student: updatedStudent
+  });
+};
+
 // Get student details
 export const getStudentDetails = async (req, res) => {
-  const student = await User.findById(req.params.studentId);
+  const student = await User.findById(req.params.studentId)
+    .populate('mentorId', 'name email');
 
   if (!student || student.role !== 'student') {
     return res.status(404).json({ error: 'Student not found' });
@@ -113,6 +228,39 @@ export const getStudentDetails = async (req, res) => {
     student: student.toJSON(),
     internships: normalizedInternships,
     reports
+  });
+};
+
+// Delete student and related data
+export const deleteStudent = async (req, res) => {
+  const student = await User.findById(req.params.studentId);
+
+  if (!student || student.role !== 'student') {
+    return res.status(404).json({ error: 'Student not found' });
+  }
+
+  const internships = await Internship.find({ studentId: student._id }).select('_id');
+  const internshipIds = internships.map((internship) => internship._id);
+
+  // Delete dependent records first, then remove internships and user.
+  await ProgressReport.deleteMany({
+    $or: [{ studentId: student._id }, { internshipId: { $in: internshipIds } }]
+  });
+
+  await File.deleteMany({
+    $or: [{ studentId: student._id }, { internshipId: { $in: internshipIds } }]
+  });
+
+  await Notification.deleteMany({
+    $or: [{ userId: student._id }, { internshipId: { $in: internshipIds } }]
+  });
+
+  await Internship.deleteMany({ studentId: student._id });
+  await User.findByIdAndDelete(student._id);
+
+  res.json({
+    success: true,
+    message: 'Student and related internships deleted successfully'
   });
 };
 

@@ -10,6 +10,9 @@ import InternshipsPage from './pages/InternshipsPage';
 import ReportsPage from './pages/ReportsPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminStudentDetailsPage from './pages/AdminStudentDetailsPage';
+import MentorsPage from './pages/MentorsPage';
+import MentorDashboardPage from './pages/MentorDashboardPage';
+import MentorReportsPage from './pages/MentorReportsPage';
 import { Loader2 } from 'lucide-react';
 
 function LoginPage() {
@@ -54,15 +57,43 @@ function AppContent() {
       >
         <Route
           path="/dashboard"
-          element={user?.role === 'admin' ? <Navigate to="/admin" replace /> : <DashboardPage />}
+          element={
+            user?.role === 'admin'
+              ? <Navigate to="/admin" replace />
+              : user?.role === 'mentor'
+                ? <MentorDashboardPage />
+                : <DashboardPage />
+          }
         />
         <Route
           path="/internships"
-          element={user?.role === 'admin' ? <Navigate to="/admin/internships" replace /> : <InternshipsPage />}
+          element={
+            user?.role === 'admin'
+              ? <Navigate to="/admin/internships" replace />
+              : user?.role === 'mentor'
+                ? <Navigate to="/dashboard" replace />
+                : <InternshipsPage />
+          }
         />
         <Route
           path="/reports"
-          element={user?.role === 'admin' ? <Navigate to="/admin/reports" replace /> : <ReportsPage />}
+          element={
+            user?.role === 'admin'
+              ? <Navigate to="/admin/reports" replace />
+              : user?.role === 'mentor'
+                ? <Navigate to="/mentor/reports" replace />
+                : <ReportsPage />
+          }
+        />
+        <Route
+          path="/mentor/reports"
+          element={
+            user?.role === 'mentor'
+              ? <MentorReportsPage />
+              : user?.role === 'admin'
+                ? <Navigate to="/admin/reports" replace />
+                : <Navigate to="/reports" replace />
+          }
         />
         <Route
           path="/profile"
@@ -81,6 +112,14 @@ function AppContent() {
           element={
             <ProtectedRoute requireAdmin>
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/mentors"
+          element={
+            <ProtectedRoute requireAdmin>
+              <MentorsPage />
             </ProtectedRoute>
           }
         />

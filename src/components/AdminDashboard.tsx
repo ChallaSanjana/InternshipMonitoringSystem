@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Users, Briefcase, FileText, Trash2 } from 'lucide-react';
+import { Users, Briefcase, FileText } from 'lucide-react';
 import { adminAPI, getFilePreviewUrl } from '../lib/api';
 import { formatDisplayDate } from '../utils/dateFormat';
 import { Link, useLocation } from 'react-router-dom';
@@ -11,6 +11,17 @@ interface Student {
   email: string;
   department?: string;
   semester?: number;
+  mentorId?: {
+    _id: string;
+    name: string;
+    email: string;
+  } | null;
+}
+
+interface MentorOption {
+  _id: string;
+  name: string;
+  email: string;
 }
 
 interface Internship {
@@ -55,31 +66,37 @@ interface Report {
   hoursWorked: number;
   status?: 'submitted' | 'reviewed' | 'feedback_given';
   adminFeedback?: string;
+  mentorFeedback?: string;
 }
 
 export default function AdminDashboard() {
   const location = useLocation();
   const [students, setStudents] = useState<Student[]>([]);
+  const [mentors, setMentors] = useState<MentorOption[]>([]);
   const [internships, setInternships] = useState<Internship[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [internshipSearchQuery, setInternshipSearchQuery] = useState('');
-  const [feedbackInputs, setFeedbackInputs] = useState<Record<string, string>>({});
+  const [assigningStudentId, setAssigningStudentId] = useState('');
+  const [selectedMentorId, setSelectedMentorId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mentorAssigning, setMentorAssigning] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const [studentsRes, internshipsRes, reportsRes] = await Promise.all([
+      const [studentsRes, internshipsRes, reportsRes, mentorsRes] = await Promise.all([
         adminAPI.getAllStudents(),
         adminAPI.getAllInternships(),
-        adminAPI.getAllReports()
+        adminAPI.getAllReports(),
+        adminAPI.getAllMentors()
       ]);
 
       setStudents(studentsRes.data.students || []);
       setInternships(internshipsRes.data.internships || []);
       setReports(reportsRes.data.reports || []);
+      setMentors(mentorsRes.data.mentors || []);
       setError('');
     } catch {
       setError('Failed to load admin panel data');
@@ -152,40 +169,37 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleFeedbackChange = (reportId: string, value: string) => {
-    setFeedbackInputs((prev) => ({ ...prev, [reportId]: value }));
+  const handleOpenAssignMentor = (student: Student) => {
+    setAssigningStudentId(student._id);
+    setSelectedMentorId(student.mentorId?._id || '');
+    setError('');
   };
 
-  const handleReportFeedbackSubmit = async (reportId: string) => {
-    const feedback = (feedbackInputs[reportId] || '').trim();
+  const handleCancelAssignMentor = () => {
+    setAssigningStudentId('');
+    setSelectedMentorId('');
+  };
 
-    if (!feedback) {
-      setError('Please enter feedback before submitting');
+  const handleAssignMentorToStudent = async (studentId: string) => {
+    if (!selectedMentorId) {
+      setError('Please select a mentor before assigning');
       return;
     }
 
     try {
-      const response = await adminAPI.updateReportFeedback(reportId, feedback);
-      const updatedReport = response.data.report;
-      setReports((prev) => prev.map((item) => (item._id === reportId ? { ...item, adminFeedback: updatedReport.adminFeedback } : item)));
-      setFeedbackInputs((prev) => ({ ...prev, [reportId]: '' }));
-      setSuccess('Feedback submitted successfully');
+      setMentorAssigning(true);
+      const response = await adminAPI.assignMentorToStudent(studentId, selectedMentorId);
+      setStudents((prev) =>
+        prev.map((student) => (student._id === studentId ? response.data.student : student))
+      );
+      setSuccess('Mentor assigned successfully');
       setTimeout(() => setSuccess(''), 5000);
       setError('');
+      handleCancelAssignMentor();
     } catch {
-      setError('Failed to submit report feedback');
-    }
-  };
-
-  const handleDeleteReportFeedback = async (reportId: string) => {
-    try {
-      await adminAPI.deleteReportFeedback(reportId);
-      setReports((prev) => prev.map((item) => (item._id === reportId ? { ...item, adminFeedback: '' } : item)));
-      setSuccess('Feedback deleted successfully');
-      setTimeout(() => setSuccess(''), 5000);
-      setError('');
-    } catch {
-      setError('Failed to delete report feedback');
+      setError('Failed to assign mentor to student');
+    } finally {
+      setMentorAssigning(false);
     }
   };
 
@@ -349,6 +363,7 @@ export default function AdminDashboard() {
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Email</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Department</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Semester</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Mentor</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Action</th>
                   </tr>
                 </thead>
@@ -360,18 +375,65 @@ export default function AdminDashboard() {
                       <td className="px-5 py-4 text-sm text-slate-600">{student.department || '-'}</td>
                       <td className="px-5 py-4 text-sm text-slate-600">{student.semester || '-'}</td>
                       <td className="px-5 py-4 text-sm text-slate-600">
-                        <Link
-                          to={`/admin/students/${student._id}`}
-                          className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                        >
-                          View Details
-                        </Link>
+                        {student.mentorId?.name || '-'}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-600">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAssignMentor(student)}
+                              className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                            >
+                              Assign Mentor
+                            </button>
+                            <Link
+                              to={`/admin/students/${student._id}`}
+                              className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              View Details
+                            </Link>
+                          </div>
+
+                          {assigningStudentId === student._id && (
+                            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                              <select
+                                value={selectedMentorId}
+                                onChange={(e) => setSelectedMentorId(e.target.value)}
+                                className="min-w-52 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              >
+                                <option value="">Select mentor</option>
+                                {mentors.map((mentor) => (
+                                  <option key={mentor._id} value={mentor._id}>
+                                    {mentor.name} ({mentor.email})
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleAssignMentorToStudent(student._id)}
+                                disabled={mentorAssigning}
+                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                              >
+                                {mentorAssigning ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleCancelAssignMentor}
+                                disabled={mentorAssigning}
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {!loading && students.length === 0 && (
                     <tr>
-                      <td className="px-5 py-8 text-center text-sm text-slate-500" colSpan={5}>No students found.</td>
+                      <td className="px-5 py-8 text-center text-sm text-slate-500" colSpan={6}>No students found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -526,7 +588,7 @@ export default function AdminDashboard() {
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Internship</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Hours</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Description</th>
-                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Feedback</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Mentor Feedback</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -544,35 +606,13 @@ export default function AdminDashboard() {
                       <td className="px-5 py-4 text-sm font-semibold text-slate-800">{report.hoursWorked}</td>
                       <td className="px-5 py-4 text-sm text-slate-700">{report.description}</td>
                       <td className="px-5 py-4 text-sm">
-                        <div className="space-y-2">
-                          {report.adminFeedback && (
-                            <div className="flex items-start justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
-                              <p className="text-xs text-blue-700">{report.adminFeedback}</p>
-                              <button
-                                onClick={() => handleDeleteReportFeedback(report._id)}
-                                title="Delete feedback"
-                                className="rounded-md p-1 text-rose-600 transition hover:bg-rose-100 hover:text-rose-700"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={feedbackInputs[report._id] || ''}
-                              onChange={(e) => handleFeedbackChange(report._id, e.target.value)}
-                              placeholder="Add feedback"
-                              className="w-52 rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            />
-                            <button
-                              onClick={() => handleReportFeedbackSubmit(report._id)}
-                              className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
-                            >
-                              Submit
-                            </button>
+                        {report.mentorFeedback ? (
+                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                            {report.mentorFeedback}
                           </div>
-                        </div>
+                        ) : (
+                          <span className="text-xs text-slate-500">No mentor feedback yet</span>
+                        )}
                       </td>
                     </tr>
                   ))}

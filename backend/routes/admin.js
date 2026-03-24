@@ -1,8 +1,13 @@
 import express from 'express';
 import { authenticate, authorize } from '../middleware/auth.js';
 import {
+  addMentor,
+  getAllMentors,
+  updateMentor,
   getAllStudents,
+  assignMentorToStudent,
   getStudentDetails,
+  deleteStudent,
   getAllInternships,
   updateInternshipStatus,
   approveInternship,
@@ -23,9 +28,16 @@ router.use(authenticate, authorize(['admin']));
 // Dashboard
 router.get('/dashboard/stats', getDashboardStats);
 
+// Mentor routes
+router.post('/add-mentor', addMentor);
+router.get('/mentors', getAllMentors);
+router.put('/mentors/:mentorId', updateMentor);
+
 // Student routes
 router.get('/students', getAllStudents);
+router.put('/students/:studentId/mentor', assignMentorToStudent);
 router.get('/students/:studentId', getStudentDetails);
+router.delete('/students/:studentId', deleteStudent);
 
 // Internship routes
 router.get('/internships', getAllInternships);

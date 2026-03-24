@@ -20,7 +20,7 @@ interface Internship {
   mode?: 'online' | 'offline' | 'hybrid';
   startDate: string;
   endDate: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'expired';
 }
 
 interface Report {
@@ -113,9 +113,11 @@ export default function StudentDashboard() {
       case 'active':
         return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'completed':
-        return <XCircle className="w-5 h-5 text-red-500" />;
+        return <CheckCircle className="w-5 h-5 text-violet-500" />;
       case 'rejected':
         return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'expired':
+        return <Clock className="w-5 h-5 text-slate-500" />;
       default:
         return <Clock className="w-5 h-5 text-yellow-500" />;
     }

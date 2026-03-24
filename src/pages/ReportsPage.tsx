@@ -26,6 +26,10 @@ export default function ReportsPage() {
       ? 'Waiting for admin approval'
       : selectedInternship?.status === 'rejected'
         ? 'Report submission is disabled because this internship was rejected'
+        : selectedInternship?.status === 'completed'
+          ? 'Report submission is closed because this internship is completed'
+          : selectedInternship?.status === 'expired'
+            ? 'Report submission is disabled because this internship is expired'
         : '';
 
   const fetchInternships = async () => {
@@ -172,7 +176,7 @@ export default function ReportsPage() {
             setShowAddReport(false);
             fetchReports(selectedInternshipId);
             setSuccess('Progress report submitted successfully');
-            setTimeout(() => setSuccess(''), 2500);
+            setTimeout(() => setSuccess(''), 5000);
           }}
         />
       )}
@@ -191,7 +195,7 @@ export default function ReportsPage() {
             setSelectedReport(null);
             fetchReports(selectedInternshipId);
             setSuccess('Progress report updated successfully');
-            setTimeout(() => setSuccess(''), 2500);
+            setTimeout(() => setSuccess(''), 5000);
           }}
         />
       )}

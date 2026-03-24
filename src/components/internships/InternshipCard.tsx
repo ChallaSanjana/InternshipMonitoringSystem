@@ -12,7 +12,7 @@ export interface InternshipItem {
   role?: string;
   position?: string;
   mode?: 'online' | 'offline' | 'hybrid';
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'expired';
   startDate: string;
   endDate: string;
 }
@@ -26,13 +26,13 @@ interface InternshipCardProps {
 
 export default function InternshipCard({ internship, onAddReport, onUploadFile, onDelete }: InternshipCardProps) {
   const isApproved = internship.status === 'approved';
-  const canUploadFile = internship.status !== 'rejected';
+  const canUploadFile = internship.status !== 'rejected' && internship.status !== 'expired';
   const displayStatus = getInternshipDisplayStatus(internship.status, internship.startDate, internship.endDate);
   const statusLabel = getInternshipDisplayStatusLabel(displayStatus);
   const statusClass = getInternshipDisplayStatusBadgeClass(displayStatus);
 
   const reportDisabledReason = 'Reports can be added only after internship approval';
-  const uploadDisabledReason = 'Uploads are disabled because this internship was rejected';
+  const uploadDisabledReason = 'Uploads are disabled because this internship is rejected or expired';
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

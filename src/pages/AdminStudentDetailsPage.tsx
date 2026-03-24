@@ -29,7 +29,7 @@ interface InternshipItem {
   companyName: string;
   role?: string;
   position?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'expired';
   startDate: string;
   endDate: string;
 }

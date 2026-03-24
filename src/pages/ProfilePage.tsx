@@ -103,7 +103,7 @@ export default function ProfilePage() {
         response.data.user.profileImage ? getFilePreviewUrl(response.data.user.profileImage) : ''
       );
       setSuccess('Profile image updated successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
       setAvatarPreview(previousPreview);
       setError(err instanceof Error ? err.message : 'Failed to upload profile image');
@@ -150,8 +150,8 @@ export default function ProfilePage() {
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
       
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(''), 3000);
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
     } finally {

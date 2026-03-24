@@ -3,6 +3,7 @@ import { Users, Briefcase, FileText, Trash2 } from 'lucide-react';
 import { adminAPI, getFilePreviewUrl } from '../lib/api';
 import { formatDisplayDate } from '../utils/dateFormat';
 import { Link, useLocation } from 'react-router-dom';
+import ProgressBar from './common/ProgressBar';
 
 interface Student {
   _id: string;
@@ -18,13 +19,15 @@ interface Internship {
     _id: string;
     name: string;
     email: string;
+    department?: string;
   };
   companyName: string;
   role?: string;
   position?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'expired';
   startDate: string;
   endDate: string;
+  progress?: number;
   files?: {
     _id: string;
     fileName: string;
@@ -59,6 +62,7 @@ export default function AdminDashboard() {
   const [students, setStudents] = useState<Student[]>([]);
   const [internships, setInternships] = useState<Internship[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [internshipSearchQuery, setInternshipSearchQuery] = useState('');
   const [feedbackInputs, setFeedbackInputs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -101,6 +105,8 @@ export default function AdminDashboard() {
     const pending = internships.filter((item) => item.status === 'pending').length;
     const approved = internships.filter((item) => item.status === 'approved').length;
     const rejected = internships.filter((item) => item.status === 'rejected').length;
+    const completed = internships.filter((item) => item.status === 'completed').length;
+    const expired = internships.filter((item) => item.status === 'expired').length;
 
     return {
       totalStudents: students.length,
@@ -108,16 +114,38 @@ export default function AdminDashboard() {
       pendingInternships: pending,
       approvedInternships: approved,
       rejectedInternships: rejected,
+      completedInternships: completed,
+      expiredInternships: expired,
       totalReports: reports.length
     };
   }, [internships, reports, students]);
 
+  const filteredInternships = useMemo(() => {
+    const query = internshipSearchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return internships;
+    }
+
+    return internships.filter((internship) => {
+      const studentName = internship.studentId?.name?.toLowerCase() || '';
+      const companyName = internship.companyName?.toLowerCase() || '';
+      const department = internship.studentId?.department?.toLowerCase() || '';
+
+      return (
+        studentName.includes(query) ||
+        companyName.includes(query) ||
+        department.includes(query)
+      );
+    });
+  }, [internshipSearchQuery, internships]);
+
   const handleUpdateInternshipStatus = async (internshipId: string, status: 'approved' | 'rejected') => {
     try {
       await adminAPI.updateInternshipStatus(internshipId, status);
-      setInternships((prev) => prev.map((item) => (item._id === internshipId ? { ...item, status } : item)));
+      await fetchAllData();
       setSuccess(`Internship ${status === 'approved' ? 'approved' : 'rejected'} successfully`);
-      setTimeout(() => setSuccess(''), 2500);
+      setTimeout(() => setSuccess(''), 5000);
       setError('');
     } catch {
       setError('Failed to update internship status');
@@ -142,7 +170,7 @@ export default function AdminDashboard() {
       setReports((prev) => prev.map((item) => (item._id === reportId ? { ...item, adminFeedback: updatedReport.adminFeedback } : item)));
       setFeedbackInputs((prev) => ({ ...prev, [reportId]: '' }));
       setSuccess('Feedback submitted successfully');
-      setTimeout(() => setSuccess(''), 2500);
+      setTimeout(() => setSuccess(''), 5000);
       setError('');
     } catch {
       setError('Failed to submit report feedback');
@@ -154,7 +182,7 @@ export default function AdminDashboard() {
       await adminAPI.deleteReportFeedback(reportId);
       setReports((prev) => prev.map((item) => (item._id === reportId ? { ...item, adminFeedback: '' } : item)));
       setSuccess('Feedback deleted successfully');
-      setTimeout(() => setSuccess(''), 2500);
+      setTimeout(() => setSuccess(''), 5000);
       setError('');
     } catch {
       setError('Failed to delete report feedback');
@@ -167,12 +195,24 @@ export default function AdminDashboard() {
         return 'bg-emerald-100 text-emerald-700 border-emerald-300';
       case 'rejected':
         return 'bg-rose-100 text-rose-700 border-rose-300';
+      case 'completed':
+        return 'bg-violet-100 text-violet-700 border-violet-300';
+      case 'expired':
+        return 'bg-slate-200 text-slate-700 border-slate-300';
       default:
         return 'bg-amber-100 text-amber-700 border-amber-300';
     }
   };
 
   const getInternshipStatusLabel = (status: Internship['status']) => {
+    if (status === 'completed') {
+      return 'Completed';
+    }
+
+    if (status === 'expired') {
+      return 'Expired';
+    }
+
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
@@ -210,7 +250,7 @@ export default function AdminDashboard() {
         {success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">{success}</div>}
 
         {currentSection === 'overview' && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-8">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -264,6 +304,26 @@ export default function AdminDashboard() {
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed</p>
+                  <p className="mt-2 text-3xl font-bold text-violet-700">{stats.completedInternships}</p>
+                </div>
+                <Briefcase className="h-9 w-9 text-violet-500" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Expired</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-700">{stats.expiredInternships}</p>
+                </div>
+                <Briefcase className="h-9 w-9 text-slate-500" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reports</p>
                   <p className="mt-2 text-3xl font-bold text-violet-700">{stats.totalReports}</p>
                 </div>
@@ -271,7 +331,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:col-span-3 xl:col-span-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:col-span-3 xl:col-span-8">
               <p className="text-sm text-slate-700">
                 You are managing {stats.totalStudents} student{stats.totalStudents === 1 ? '' : 's'} and {stats.totalInternships} internship{stats.totalInternships === 1 ? '' : 's'}.
               </p>
@@ -322,6 +382,15 @@ export default function AdminDashboard() {
 
         {currentSection === 'internships' && (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 p-4">
+              <input
+                type="text"
+                value={internshipSearchQuery}
+                onChange={(e) => setInternshipSearchQuery(e.target.value)}
+                placeholder="Search by student name, company, or department"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 md:max-w-md"
+              />
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead className="bg-slate-50">
@@ -330,22 +399,63 @@ export default function AdminDashboard() {
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Company</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Role</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Dates</th>
+                    <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Progress</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Proof Files</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Status</th>
                     <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {internships.map((internship) => (
+                  {filteredInternships.map((internship) => (
                     <tr key={internship._id}>
                       <td className="px-5 py-4 text-sm text-slate-700">
                         <p className="font-semibold text-slate-800">{internship.studentId?.name || '-'}</p>
                         <p className="text-xs text-slate-500">{internship.studentId?.email || '-'}</p>
+                        <p className="text-xs text-slate-500">{internship.studentId?.department || '-'}</p>
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-700">{internship.companyName}</td>
                       <td className="px-5 py-4 text-sm text-slate-700">{internship.role || internship.position || '-'}</td>
+                      <td className="px-5 py-4 align-middle text-sm text-slate-700">
+                        <span className="inline-flex items-center whitespace-nowrap font-medium tabular-nums">
+                          {formatDisplayDate(internship.startDate)} – {formatDisplayDate(internship.endDate)}
+                        </span>
+                      </td>
                       <td className="px-5 py-4 text-sm text-slate-700">
-                        {formatDisplayDate(internship.startDate)} - {formatDisplayDate(internship.endDate)}
+                        {internship.status === 'approved' && (
+                          <ProgressBar progress={internship.progress || 0} showPercentage={true} size="small" />
+                        )}
+                        {internship.status === 'completed' && (
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-violet-200">
+                              <div className="h-full bg-violet-500" style={{ width: '100%' }} />
+                            </div>
+                            <span className="whitespace-nowrap text-xs font-semibold text-violet-700">Completed</span>
+                          </div>
+                        )}
+                        {internship.status === 'rejected' && (
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-rose-200">
+                              <div className="h-full bg-rose-500" style={{ width: '0%' }} />
+                            </div>
+                            <span className="whitespace-nowrap text-xs font-semibold text-rose-700">Rejected</span>
+                          </div>
+                        )}
+                        {internship.status === 'pending' && (
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-slate-200">
+                              <div className="h-full bg-slate-400" style={{ width: '0%' }} />
+                            </div>
+                            <span className="whitespace-nowrap text-xs font-semibold text-slate-600">Pending Approval</span>
+                          </div>
+                        )}
+                        {internship.status === 'expired' && (
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-slate-200">
+                              <div className="h-full bg-slate-500" style={{ width: '0%' }} />
+                            </div>
+                            <span className="whitespace-nowrap text-xs font-semibold text-slate-700">Expired</span>
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-700">
                         {(internship.files || []).length === 0 ? (
@@ -376,14 +486,14 @@ export default function AdminDashboard() {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleUpdateInternshipStatus(internship._id, 'approved')}
-                            disabled={internship.status === 'approved'}
+                            disabled={internship.status === 'approved' || internship.status === 'completed' || internship.status === 'expired'}
                             className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
                           >
                             Approve
                           </button>
                           <button
                             onClick={() => handleUpdateInternshipStatus(internship._id, 'rejected')}
-                            disabled={internship.status === 'rejected'}
+                            disabled={internship.status === 'rejected' || internship.status === 'completed' || internship.status === 'expired'}
                             className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
                           >
                             Reject
@@ -392,9 +502,11 @@ export default function AdminDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {!loading && internships.length === 0 && (
+                  {!loading && filteredInternships.length === 0 && (
                     <tr>
-                      <td className="px-5 py-8 text-center text-sm text-slate-500" colSpan={7}>No internships found.</td>
+                      <td className="px-5 py-8 text-center text-sm text-slate-500" colSpan={8}>
+                        {internshipSearchQuery.trim() ? 'No matching internships found.' : 'No internships found.'}
+                      </td>
                     </tr>
                   )}
                 </tbody>

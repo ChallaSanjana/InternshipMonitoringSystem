@@ -5,7 +5,7 @@ interface SidebarProps {
   isAdmin: boolean;
 }
 
-const baseItemClass = 'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition';
+const baseItemClass = 'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all duration-300 ease-in-out transform-gpu';
 
 type MenuItem = {
   to: string;
@@ -32,7 +32,7 @@ export default function Sidebar({ isAdmin }: SidebarProps) {
   const menuItems = isAdmin ? adminMenu : studentMenu;
 
   return (
-    <aside className="w-full border-b border-slate-200 bg-white p-4 md:h-screen md:w-64 md:border-b-0 md:border-r md:p-5">
+    <aside className="w-full border-b border-slate-200 bg-white p-4 md:h-screen md:w-72 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r md:p-5">
       <div className="mb-5 hidden md:block">
         <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Internship Hub</h1>
         <p className="text-xs text-slate-500">Monitoring dashboard</p>
@@ -47,7 +47,7 @@ export default function Sidebar({ isAdmin }: SidebarProps) {
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              `${baseItemClass} ${isActive ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`
+              `${baseItemClass} ${isActive ? 'scale-[1.02] bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-slate-600 hover:translate-x-1 hover:bg-slate-100 hover:text-blue-700'}`
             }
           >
             <Icon className="h-4 w-4" />

@@ -6,6 +6,7 @@ import Notification from '../models/Notification.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { getEffectiveInternshipStatus } from '../utils/internshipLifecycle.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,6 +39,25 @@ export const addInternship = async (req, res) => {
 
   if (new Date(endDate) < new Date(startDate)) {
     return res.status(400).json({ error: 'End date cannot be before start date' });
+  }
+
+  const normalizedStartDate = new Date(startDate);
+  const normalizedEndDate = new Date(endDate);
+
+  if (Number.isNaN(normalizedStartDate.getTime()) || Number.isNaN(normalizedEndDate.getTime())) {
+    return res.status(400).json({ error: 'Invalid internship dates' });
+  }
+
+  // Block only if there is an approved internship that overlaps this new duration.
+  const overlappingApprovedInternship = await Internship.findOne({
+    studentId: req.user.id,
+    status: 'approved',
+    startDate: { $lte: normalizedEndDate },
+    endDate: { $gte: normalizedStartDate }
+  }).select('_id');
+
+  if (overlappingApprovedInternship) {
+    return res.status(400).json({ error: 'You already have an approved internship for this duration' });
   }
 
   const normalizedRole = role || position;
@@ -79,9 +99,15 @@ export const addInternship = async (req, res) => {
 export const getMyInternships = async (req, res) => {
   const internships = await Internship.find({ studentId: req.user.id }).sort({ createdAt: -1 });
 
+  const normalizedInternships = internships.map((internship) => {
+    const plainInternship = internship.toObject();
+    plainInternship.status = getEffectiveInternshipStatus(plainInternship.status, plainInternship.endDate);
+    return plainInternship;
+  });
+
   res.json({
     success: true,
-    internships
+    internships: normalizedInternships
   });
 };
 
@@ -96,9 +122,12 @@ export const getInternshipDetails = async (req, res) => {
     return res.status(403).json({ error: 'Not authorized' });
   }
 
+  const plainInternship = internship.toObject();
+  plainInternship.status = getEffectiveInternshipStatus(plainInternship.status, plainInternship.endDate);
+
   res.json({
     success: true,
-    internship
+    internship: plainInternship
   });
 };
 

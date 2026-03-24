@@ -4,6 +4,8 @@ import ProgressReport from '../models/ProgressReport.js';
 import File from '../models/File.js';
 import Notification from '../models/Notification.js';
 import { sendInternshipStatusEmail } from '../utils/emailService.js';
+import { calculateProgress } from '../utils/progressCalculator.js';
+import { getEffectiveInternshipStatus } from '../utils/internshipLifecycle.js';
 
 const notifyStudentOnStatusChange = async (internshipId, status) => {
   const internship = await Internship.findById(internshipId)
@@ -58,6 +60,27 @@ const notifyStudentOnReportFeedback = async (reportId) => {
   });
 };
 
+const rejectOverlappingPendingInternships = async (approvedInternship) => {
+  if (!approvedInternship) {
+    return;
+  }
+
+  await Internship.updateMany(
+    {
+      studentId: approvedInternship.studentId,
+      _id: { $ne: approvedInternship._id },
+      status: 'pending',
+      startDate: { $lte: approvedInternship.endDate },
+      endDate: { $gte: approvedInternship.startDate }
+    },
+    {
+      $set: {
+        status: 'rejected'
+      }
+    }
+  );
+};
+
 // Get all students
 export const getAllStudents = async (req, res) => {
   const students = await User.find({ role: 'student' }).sort({ createdAt: -1 });
@@ -79,10 +102,16 @@ export const getStudentDetails = async (req, res) => {
   const internships = await Internship.find({ studentId: student._id });
   const reports = await ProgressReport.find({ studentId: student._id });
 
+  const normalizedInternships = internships.map((internship) => {
+    const plainInternship = internship.toObject();
+    plainInternship.status = getEffectiveInternshipStatus(plainInternship.status, plainInternship.endDate);
+    return plainInternship;
+  });
+
   res.json({
     success: true,
     student: student.toJSON(),
-    internships,
+    internships: normalizedInternships,
     reports
   });
 };
@@ -110,7 +139,14 @@ export const getAllInternships = async (req, res) => {
 
   const internshipsWithFiles = internships.map((internship) => {
     const plainInternship = internship.toObject();
+    const effectiveStatus = getEffectiveInternshipStatus(plainInternship.status, plainInternship.endDate);
+
+    plainInternship.status = effectiveStatus;
     plainInternship.files = filesByInternship.get(internship._id.toString()) || [];
+    plainInternship.progress = effectiveStatus === 'approved' || effectiveStatus === 'completed'
+      ? calculateProgress(internship.startDate, internship.endDate)
+      : 0;
+
     return plainInternship;
   });
 
@@ -154,6 +190,10 @@ export const updateInternshipStatus = async (req, res) => {
     { new: true }
   );
 
+  if (mappedStatus === 'approved') {
+    await rejectOverlappingPendingInternships(internship);
+  }
+
   try {
     await notifyStudentOnStatusChange(req.params.id, mappedStatus);
   } catch (error) {
@@ -182,6 +222,8 @@ export const approveInternship = async (req, res) => {
     },
     { new: true }
   );
+
+  await rejectOverlappingPendingInternships(internship);
 
   try {
     await notifyStudentOnStatusChange(req.params.internshipId, 'approved');

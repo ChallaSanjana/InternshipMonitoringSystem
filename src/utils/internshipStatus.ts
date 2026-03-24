@@ -1,7 +1,7 @@
 export type DateBasedStatus = 'pending' | 'active' | 'completed';
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'expired';
 export type TimeStatus = 'upcoming' | 'active' | 'completed';
-export type InternshipDisplayStatus = 'rejected' | 'waiting_for_approval' | 'upcoming' | 'active' | 'completed';
+export type InternshipDisplayStatus = 'rejected' | 'waiting_for_approval' | 'upcoming' | 'active' | 'completed' | 'expired';
 
 export function getDateBasedStatus(startDate: string, endDate: string): DateBasedStatus {
   const now = new Date();
@@ -50,6 +50,14 @@ export function getInternshipDisplayStatus(
   startDate: string,
   endDate: string
 ): InternshipDisplayStatus {
+  if (approvalStatus === 'completed') {
+    return 'completed';
+  }
+
+  if (approvalStatus === 'expired') {
+    return 'expired';
+  }
+
   if (approvalStatus === 'rejected') {
     return 'rejected';
   }
@@ -73,6 +81,8 @@ export function getInternshipDisplayStatusLabel(status: InternshipDisplayStatus)
       return 'Active';
     case 'completed':
       return 'Completed';
+    case 'expired':
+      return 'Expired';
     default:
       return 'Unknown';
   }
@@ -90,6 +100,8 @@ export function getInternshipDisplayStatusBadgeClass(status: InternshipDisplaySt
       return 'bg-violet-100 text-violet-700 border-violet-300';
     case 'upcoming':
       return 'bg-sky-100 text-sky-700 border-sky-300';
+    case 'expired':
+      return 'bg-slate-200 text-slate-700 border-slate-300';
     default:
       return 'bg-slate-100 text-slate-700 border-slate-300';
   }

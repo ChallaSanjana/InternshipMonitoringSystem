@@ -35,13 +35,11 @@ export default function DashboardPage() {
     const pendingInternships = internships.filter((item) => item.status === 'pending').length;
     const approvedInternships = internships.filter((item) => item.status === 'approved').length;
     const rejectedInternships = internships.filter((item) => item.status === 'rejected').length;
+    const completedInternships = internships.filter((item) => item.status === 'completed').length;
 
     const approvedItems = internships.filter((item) => item.status === 'approved');
     const activeInternships = approvedItems.filter(
       (item) => getInternshipTimeStatus(item.startDate, item.endDate) === 'active'
-    ).length;
-    const completedInternships = approvedItems.filter(
-      (item) => getInternshipTimeStatus(item.startDate, item.endDate) === 'completed'
     ).length;
 
     return {

@@ -21,9 +21,12 @@ export default function InternshipsPage() {
 
   const selectedInternship = internships.find((item) => item._id === selectedInternshipId);
 
-  const fetchInternships = async () => {
+  const fetchInternships = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
+
       const response = await studentAPI.getMyInternships();
       setInternships(response.data.internships || []);
       setError('');
@@ -31,21 +34,23 @@ export default function InternshipsPage() {
       setError('Failed to fetch internships');
       setSuccess('');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchInternships();
+    fetchInternships(true);
   }, []);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
-      fetchInternships();
+      fetchInternships(false);
     }, 20000);
 
     const handleFocus = () => {
-      fetchInternships();
+      fetchInternships(false);
     };
 
     window.addEventListener('focus', handleFocus);
@@ -55,6 +60,20 @@ export default function InternshipsPage() {
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
+
+  useEffect(() => {
+    if (!success) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSuccess('');
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [success]);
 
   const fetchFilesForInternship = async (internshipId: string) => {
     try {
@@ -101,7 +120,7 @@ export default function InternshipsPage() {
         [internshipId]: (prev[internshipId] || []).filter((file) => file._id !== fileId)
       }));
       setError('');
-      setSuccess('');
+      setSuccess('File deleted successfully');
     } catch {
       setError('Failed to delete file');
     }
@@ -147,14 +166,13 @@ export default function InternshipsPage() {
       </div>
 
       {error && <p className="rounded-xl bg-rose-50 p-4 text-rose-700">{error}</p>}
-      {success && <p className="rounded-xl bg-emerald-50 p-4 text-emerald-700">{success}</p>}
       {success && (
         <div className="fixed right-4 top-20 z-50 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg">
           {success}
         </div>
       )}
 
-      {loading && <p className="text-slate-600">Loading internships...</p>}
+      {loading && internships.length === 0 && <p className="text-slate-600">Loading internships...</p>}
 
       {!loading && internships.length === 0 && (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
@@ -199,7 +217,8 @@ export default function InternshipsPage() {
           onClose={() => setShowAddInternship(false)}
           onSuccess={() => {
             setShowAddInternship(false);
-            fetchInternships();
+            fetchInternships(false);
+            setSuccess('Internship added successfully');
           }}
         />
       )}
@@ -217,7 +236,6 @@ export default function InternshipsPage() {
             setShowAddReport(false);
             setSelectedInternshipId('');
             setSuccess('Progress report submitted successfully');
-            setTimeout(() => setSuccess(''), 2500);
           }}
         />
       )}
@@ -233,6 +251,7 @@ export default function InternshipsPage() {
             fetchFilesForInternship(selectedInternshipId);
             setShowUploadFile(false);
             setSelectedInternshipId('');
+            setSuccess('File uploaded successfully');
           }}
         />
       )}

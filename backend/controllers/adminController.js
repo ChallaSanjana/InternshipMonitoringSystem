@@ -60,6 +60,35 @@ const notifyStudentOnReportFeedback = async (reportId) => {
   });
 };
 
+const notifyAssignedMentorOnInternshipStatusChange = async (internshipId, status) => {
+  const internship = await Internship.findById(internshipId)
+    .select('studentId');
+
+  if (!internship?.studentId) {
+    return;
+  }
+
+  const student = await User.findById(internship.studentId).select('mentorId');
+
+  if (!student?.mentorId) {
+    return;
+  }
+
+  const isApproved = status === 'approved';
+
+  await Notification.create({
+    userId: student.mentorId,
+    role: 'mentor',
+    internshipId,
+    title: isApproved ? 'Internship Approved' : 'Internship Rejected',
+    message: isApproved
+      ? "Your assigned student's internship has been approved by admin"
+      : "Your assigned student's internship has been rejected by admin",
+    type: isApproved ? 'internship_approved' : 'internship_rejected',
+    isRead: false
+  });
+};
+
 // Add mentor (admin only)
 export const addMentor = async (req, res) => {
   const { name, email, password, department } = req.body;
@@ -142,6 +171,29 @@ export const updateMentor = async (req, res) => {
   });
 };
 
+// Delete mentor (admin only)
+export const deleteMentor = async (req, res) => {
+  const mentor = await User.findById(req.params.mentorId).select('_id role');
+
+  if (!mentor || mentor.role !== 'mentor') {
+    return res.status(404).json({ error: 'Mentor not found' });
+  }
+
+  await User.updateMany(
+    { role: 'student', mentorId: mentor._id },
+    { $set: { mentorId: null } }
+  );
+
+  await Notification.deleteMany({ userId: mentor._id });
+
+  await User.findByIdAndDelete(mentor._id);
+
+  return res.json({
+    success: true,
+    message: 'Mentor deleted successfully'
+  });
+};
+
 const rejectOverlappingPendingInternships = async (approvedInternship) => {
   if (!approvedInternship) {
     return;
@@ -196,6 +248,15 @@ export const assignMentorToStudent = async (req, res) => {
   student.mentorId = mentor._id;
   await student.save();
 
+  await Notification.create({
+    userId: mentor._id,
+    role: 'mentor',
+    title: 'New Student Assigned',
+    message: 'You have been assigned a new student',
+    type: 'general',
+    isRead: false
+  });
+
   const updatedStudent = await User.findById(student._id)
     .populate('mentorId', 'name email');
 
@@ -208,7 +269,7 @@ export const assignMentorToStudent = async (req, res) => {
 // Get student details
 export const getStudentDetails = async (req, res) => {
   const student = await User.findById(req.params.studentId)
-    .populate('mentorId', 'name email');
+    .populate('mentorId', 'name email department');
 
   if (!student || student.role !== 'student') {
     return res.status(404).json({ error: 'Student not found' });
@@ -226,6 +287,7 @@ export const getStudentDetails = async (req, res) => {
   res.json({
     success: true,
     student: student.toJSON(),
+    mentor: student.mentorId || null,
     internships: normalizedInternships,
     reports
   });
@@ -348,6 +410,12 @@ export const updateInternshipStatus = async (req, res) => {
     console.error('Failed to send internship status email:', error.message);
   }
 
+  try {
+    await notifyAssignedMentorOnInternshipStatusChange(req.params.id, mappedStatus);
+  } catch (error) {
+    console.error('Failed to notify assigned mentor on internship status change:', error.message);
+  }
+
   res.json({
     success: true,
     internship
@@ -379,6 +447,12 @@ export const approveInternship = async (req, res) => {
     console.error('Failed to send internship approval email:', error.message);
   }
 
+  try {
+    await notifyAssignedMentorOnInternshipStatusChange(req.params.internshipId, 'approved');
+  } catch (error) {
+    console.error('Failed to notify assigned mentor on internship approval:', error.message);
+  }
+
   res.json({
     success: true,
     internship
@@ -406,6 +480,12 @@ export const rejectInternship = async (req, res) => {
     await notifyStudentOnStatusChange(req.params.internshipId, 'rejected');
   } catch (error) {
     console.error('Failed to send internship rejection email:', error.message);
+  }
+
+  try {
+    await notifyAssignedMentorOnInternshipStatusChange(req.params.internshipId, 'rejected');
+  } catch (error) {
+    console.error('Failed to notify assigned mentor on internship rejection:', error.message);
   }
 
   res.json({

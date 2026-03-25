@@ -7,11 +7,11 @@ export default function AppLayout() {
   const { user, signOut } = useAuth();
 
   return (
-    <div className="min-h-screen bg-slate-50 md:flex">
+    <div className="min-h-screen bg-slate-50 md:h-screen md:overflow-hidden">
       <Sidebar role={user?.role} />
-      <div className="flex-1">
+      <div className="flex-1 md:ml-72 md:flex md:h-screen md:min-w-0 md:flex-col">
         <Navbar userName={user?.name || 'User'} onLogout={signOut} />
-        <main className="p-4 md:p-8">
+        <main className="p-4 md:flex-1 md:overflow-y-auto md:p-8">
           <Outlet />
         </main>
       </div>

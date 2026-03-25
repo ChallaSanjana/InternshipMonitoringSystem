@@ -4,6 +4,7 @@ import {
   addMentor,
   getAllMentors,
   updateMentor,
+  deleteMentor,
   getAllStudents,
   assignMentorToStudent,
   getStudentDetails,
@@ -32,6 +33,7 @@ router.get('/dashboard/stats', getDashboardStats);
 router.post('/add-mentor', addMentor);
 router.get('/mentors', getAllMentors);
 router.put('/mentors/:mentorId', updateMentor);
+router.delete('/mentors/:mentorId', deleteMentor);
 
 // Student routes
 router.get('/students', getAllStudents);

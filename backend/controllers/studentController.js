@@ -29,6 +29,24 @@ const createAdminNotifications = async ({ title, message, internshipId, type }) 
   await Notification.insertMany(payload);
 };
 
+const createAssignedMentorNotification = async ({ studentId, internshipId, title, message, type = 'general' }) => {
+  const student = await User.findById(studentId).select('mentorId');
+
+  if (!student?.mentorId) {
+    return;
+  }
+
+  await Notification.create({
+    userId: student.mentorId,
+    role: 'mentor',
+    internshipId,
+    title,
+    message,
+    type,
+    isRead: false
+  });
+};
+
 // Internship Controllers
 export const addInternship = async (req, res) => {
   const { companyName, role, position, startDate, endDate, mode, location, description, mentorName, mentorEmail } = req.body;
@@ -88,6 +106,18 @@ export const addInternship = async (req, res) => {
     });
   } catch (error) {
     console.error('Failed to create admin internship notification:', error.message);
+  }
+
+  try {
+    await createAssignedMentorNotification({
+      studentId: req.user.id,
+      internshipId: internship._id,
+      title: 'New Internship Added',
+      message: 'Your assigned student has added a new internship',
+      type: 'new_internship_submitted'
+    });
+  } catch (error) {
+    console.error('Failed to create mentor internship notification:', error.message);
   }
 
   res.status(201).json({
@@ -251,6 +281,18 @@ export const submitReport = async (req, res) => {
     });
   } catch (error) {
     console.error('Failed to create admin report notification:', error.message);
+  }
+
+  try {
+    await createAssignedMentorNotification({
+      studentId: req.user.id,
+      internshipId,
+      title: 'New Progress Report',
+      message: 'Your student has submitted a new progress report',
+      type: 'new_report_submitted'
+    });
+  } catch (error) {
+    console.error('Failed to create mentor report notification:', error.message);
   }
 
   res.status(201).json({

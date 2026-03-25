@@ -17,6 +17,7 @@ import {
 
 export default function ProfilePage() {
   const { user, updateUserProfile } = useAuth();
+  const isMentor = user?.role === 'mentor';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -62,7 +63,9 @@ export default function ProfilePage() {
   };
 
   const hasPersonalInfo = Boolean(
-    user?.phoneNumber || user?.collegeName || user?.linkedin || user?.github || user?.about
+    isMentor
+      ? user?.phoneNumber
+      : user?.phoneNumber || user?.collegeName || user?.linkedin || user?.github || user?.about
   );
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,12 +138,16 @@ export default function ProfilePage() {
         name: formData.name,
         email: formData.email,
         department: formData.department || undefined,
-        semester: formData.semester ? parseInt(formData.semester, 10) : undefined,
-        phoneNumber: formData.phoneNumber,
-        collegeName: formData.collegeName,
-        linkedin: formData.linkedin,
-        github: formData.github,
-        about: formData.about
+        phoneNumber: formData.phoneNumber || undefined,
+        ...(isMentor
+          ? {}
+          : {
+              semester: formData.semester ? parseInt(formData.semester, 10) : undefined,
+              collegeName: formData.collegeName,
+              linkedin: formData.linkedin,
+              github: formData.github,
+              about: formData.about
+            })
       };
 
       const response = await authAPI.updateProfile(updatePayload);
@@ -183,7 +190,11 @@ export default function ProfilePage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-          <p className="text-gray-600 mt-2">View and manage your personal information</p>
+          <p className="text-gray-600 mt-2">
+            {isMentor
+              ? 'View and manage your essential profile details'
+              : 'View and manage your personal information'}
+          </p>
         </div>
 
         {/* Error Alert */}
@@ -266,7 +277,7 @@ export default function ProfilePage() {
                 )}
 
                 {/* Semester */}
-                {user?.semester && (
+                {!isMentor && user?.semester && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Layers className="w-5 h-5 text-gray-400" />
@@ -275,83 +286,96 @@ export default function ProfilePage() {
                     <p className="text-gray-900">Semester {user.semester}</p>
                   </div>
                 )}
-              </div>
 
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 mb-8">
-                <h3 className="mb-4 text-base font-semibold text-slate-900">✏️ Personal Info</h3>
-
-                {!hasPersonalInfo && (
-                  <p className="text-sm text-slate-600">No personal information added yet</p>
-                )}
-
-                {hasPersonalInfo && (
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {user?.phoneNumber && (
-                      <div>
-                        <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                          <Phone className="h-3.5 w-3.5" />
-                          Phone Number
-                        </p>
-                        <p className="text-sm text-slate-800">{user.phoneNumber}</p>
-                      </div>
-                    )}
-
-                    {user?.collegeName && (
-                      <div>
-                        <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                          <GraduationCap className="h-3.5 w-3.5" />
-                          College Name
-                        </p>
-                        <p className="text-sm text-slate-800">{user.collegeName}</p>
-                      </div>
-                    )}
-
-                    {user?.linkedin && (
-                      <div>
-                        <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                          <Linkedin className="h-3.5 w-3.5" />
-                          LinkedIn
-                        </p>
-                        <a
-                          href={user.linkedin}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 underline break-all hover:text-blue-700"
-                        >
-                          {user.linkedin}
-                        </a>
-                      </div>
-                    )}
-
-                    {user?.github && (
-                      <div>
-                        <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                          <Github className="h-3.5 w-3.5" />
-                          GitHub
-                        </p>
-                        <a
-                          href={user.github}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 underline break-all hover:text-blue-700"
-                        >
-                          {user.github}
-                        </a>
-                      </div>
-                    )}
-
-                    {user?.about && (
-                      <div className="md:col-span-2">
-                        <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                          <AlignLeft className="h-3.5 w-3.5" />
-                          About
-                        </p>
-                        <p className="text-sm text-slate-800 whitespace-pre-wrap">{user.about}</p>
-                      </div>
-                    )}
+                {/* Phone */}
+                {isMentor && user?.phoneNumber && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Phone className="w-5 h-5 text-gray-400" />
+                      <label className="text-sm font-medium text-gray-700">Phone</label>
+                    </div>
+                    <p className="text-gray-900">{user.phoneNumber}</p>
                   </div>
                 )}
               </div>
+
+              {!isMentor && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 mb-8">
+                  <h3 className="mb-4 text-base font-semibold text-slate-900">✏️ Personal Info</h3>
+
+                  {!hasPersonalInfo && (
+                    <p className="text-sm text-slate-600">No personal information added yet</p>
+                  )}
+
+                  {hasPersonalInfo && (
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {user?.phoneNumber && (
+                        <div>
+                          <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                            <Phone className="h-3.5 w-3.5" />
+                            Phone Number
+                          </p>
+                          <p className="text-sm text-slate-800">{user.phoneNumber}</p>
+                        </div>
+                      )}
+
+                      {user?.collegeName && (
+                        <div>
+                          <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                            <GraduationCap className="h-3.5 w-3.5" />
+                            College Name
+                          </p>
+                          <p className="text-sm text-slate-800">{user.collegeName}</p>
+                        </div>
+                      )}
+
+                      {user?.linkedin && (
+                        <div>
+                          <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                            <Linkedin className="h-3.5 w-3.5" />
+                            LinkedIn
+                          </p>
+                          <a
+                            href={user.linkedin}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 underline break-all hover:text-blue-700"
+                          >
+                            {user.linkedin}
+                          </a>
+                        </div>
+                      )}
+
+                      {user?.github && (
+                        <div>
+                          <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                            <Github className="h-3.5 w-3.5" />
+                            GitHub
+                          </p>
+                          <a
+                            href={user.github}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 underline break-all hover:text-blue-700"
+                          >
+                            {user.github}
+                          </a>
+                        </div>
+                      )}
+
+                      {user?.about && (
+                        <div className="md:col-span-2">
+                          <p className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                            <AlignLeft className="h-3.5 w-3.5" />
+                            About
+                          </p>
+                          <p className="text-sm text-slate-800 whitespace-pre-wrap">{user.about}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <button
                 onClick={() => setIsEditing(true)}
@@ -417,106 +441,125 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Semester */}
-                <div>
-                  <label htmlFor="semester" className="block text-sm font-medium text-gray-700 mb-2">
-                    Semester
-                  </label>
-                  <select
-                    id="semester"
-                    name="semester"
-                    value={formData.semester}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                  >
-                    <option value="">Select semester</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
-                      <option key={sem} value={sem.toString()}>
-                        Semester {sem}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {!isMentor && (
+                  <div>
+                    <label htmlFor="semester" className="block text-sm font-medium text-gray-700 mb-2">
+                      Semester
+                    </label>
+                    <select
+                      id="semester"
+                      name="semester"
+                      value={formData.semester}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    >
+                      <option value="">Select semester</option>
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                        <option key={sem} value={sem.toString()}>
+                          Semester {sem}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="mb-4 text-base font-semibold text-slate-900">✏️ Personal Info</h3>
+                {isMentor ? (
+                  <div>
+                    <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number
+                    </label>
+                    <input
+                      id="phoneNumber"
+                      type="text"
+                      name="phoneNumber"
+                      value={formData.phoneNumber}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                      placeholder="Optional"
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h3 className="mb-4 text-base font-semibold text-slate-900">✏️ Personal Info</h3>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone Number
-                      </label>
-                      <input
-                        id="phoneNumber"
-                        type="text"
-                        name="phoneNumber"
-                        value={formData.phoneNumber}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                        placeholder="Optional"
-                      />
-                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                          Phone Number
+                        </label>
+                        <input
+                          id="phoneNumber"
+                          type="text"
+                          name="phoneNumber"
+                          value={formData.phoneNumber}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          placeholder="Optional"
+                        />
+                      </div>
 
-                    <div>
-                      <label htmlFor="collegeName" className="block text-sm font-medium text-gray-700 mb-2">
-                        College Name
-                      </label>
-                      <input
-                        id="collegeName"
-                        type="text"
-                        name="collegeName"
-                        value={formData.collegeName}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                        placeholder="Optional"
-                      />
-                    </div>
+                      <div>
+                        <label htmlFor="collegeName" className="block text-sm font-medium text-gray-700 mb-2">
+                          College Name
+                        </label>
+                        <input
+                          id="collegeName"
+                          type="text"
+                          name="collegeName"
+                          value={formData.collegeName}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          placeholder="Optional"
+                        />
+                      </div>
 
-                    <div>
-                      <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-2">
-                        LinkedIn URL
-                      </label>
-                      <input
-                        id="linkedin"
-                        type="url"
-                        name="linkedin"
-                        value={formData.linkedin}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                        placeholder="https://linkedin.com/in/your-profile"
-                      />
-                    </div>
+                      <div>
+                        <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-2">
+                          LinkedIn URL
+                        </label>
+                        <input
+                          id="linkedin"
+                          type="url"
+                          name="linkedin"
+                          value={formData.linkedin}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          placeholder="https://linkedin.com/in/your-profile"
+                        />
+                      </div>
 
-                    <div>
-                      <label htmlFor="github" className="block text-sm font-medium text-gray-700 mb-2">
-                        GitHub URL
-                      </label>
-                      <input
-                        id="github"
-                        type="url"
-                        name="github"
-                        value={formData.github}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                        placeholder="https://github.com/your-username"
-                      />
-                    </div>
+                      <div>
+                        <label htmlFor="github" className="block text-sm font-medium text-gray-700 mb-2">
+                          GitHub URL
+                        </label>
+                        <input
+                          id="github"
+                          type="url"
+                          name="github"
+                          value={formData.github}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                          placeholder="https://github.com/your-username"
+                        />
+                      </div>
 
-                    <div>
-                      <label htmlFor="about" className="block text-sm font-medium text-gray-700 mb-2">
-                        About
-                      </label>
-                      <textarea
-                        id="about"
-                        name="about"
-                        value={formData.about}
-                        onChange={handleChange}
-                        rows={4}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-y"
-                        placeholder="Tell us a little about yourself (optional)"
-                      />
+                      <div>
+                        <label htmlFor="about" className="block text-sm font-medium text-gray-700 mb-2">
+                          About
+                        </label>
+                        <textarea
+                          id="about"
+                          name="about"
+                          value={formData.about}
+                          onChange={handleChange}
+                          rows={4}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-y"
+                          placeholder="Tell us a little about yourself (optional)"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Buttons */}
                 <div className="flex gap-3 pt-4">
@@ -545,7 +588,9 @@ export default function ProfilePage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-8">
           <h3 className="text-lg font-semibold text-blue-900 mb-2">Account Information</h3>
           <p className="text-blue-800 text-sm">
-            Your profile information helps us provide you with a better experience. Personal info fields are optional and you can update them anytime.
+            {isMentor
+              ? 'Keep your profile focused with essential details only. You can update these fields anytime.'
+              : 'Your profile information helps us provide you with a better experience. Personal info fields are optional and you can update them anytime.'}
           </p>
         </div>
       </div>

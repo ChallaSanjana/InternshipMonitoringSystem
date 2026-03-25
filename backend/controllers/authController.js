@@ -79,7 +79,13 @@ export const login = async (req, res) => {
 };
 
 export const getCurrentUser = async (req, res) => {
-  const user = await User.findById(req.user.id);
+  const user = await User.findById(req.user.id)
+    .populate('mentorId', 'name email department');
+
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
   res.json({
     success: true,
     user: user.toJSON()

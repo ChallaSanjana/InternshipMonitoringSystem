@@ -108,8 +108,8 @@ export default function MentorDashboardPage() {
     const fetchAssignedStudents = async () => {
       try {
         setLoading(true);
-        const response = await mentorAPI.getAssignedStudents();
-        setStudents(response.data.students || []);
+        const studentsResponse = await mentorAPI.getAssignedStudents();
+        setStudents(studentsResponse.data.students || []);
         setError('');
       } catch {
         setError('Failed to load assigned students');

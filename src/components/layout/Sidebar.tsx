@@ -39,7 +39,7 @@ export default function Sidebar({ role = 'student' }: SidebarProps) {
   const menuItems = role === 'admin' ? adminMenu : role === 'mentor' ? mentorMenu : studentMenu;
 
   return (
-    <aside className="w-full border-b border-slate-200 bg-white p-4 md:h-screen md:w-72 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r md:p-5">
+    <aside className="w-full border-b border-slate-200 bg-white p-4 md:fixed md:inset-y-0 md:left-0 md:z-30 md:h-screen md:w-72 md:overflow-y-auto md:border-b-0 md:border-r md:p-5">
       <div className="mb-5 hidden md:block">
         <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Internship Hub</h1>
         <p className="text-xs text-slate-500">Monitoring dashboard</p>

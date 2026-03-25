@@ -64,6 +64,7 @@ export const getAssignedStudentDetails = async (req, res) => {
     role: 'student',
     mentorId: req.user.id
   })
+    .populate('mentorId', 'name email department')
     .select('name email department semester mentorId createdAt phoneNumber collegeName linkedin github about profileImage');
 
   if (!student) {
@@ -103,6 +104,7 @@ export const getAssignedStudentDetails = async (req, res) => {
   return res.json({
     success: true,
     student,
+    mentor: student.mentorId || null,
     internships: normalizedInternships,
     reports,
     files

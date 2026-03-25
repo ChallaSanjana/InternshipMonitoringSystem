@@ -85,6 +85,7 @@ export const adminAPI = {
   getAllMentors: () => api.get('/admin/mentors'),
   updateMentor: (mentorId: string, data: Record<string, unknown>) =>
     api.put(`/admin/mentors/${mentorId}`, data),
+  deleteMentor: (mentorId: string) => api.delete(`/admin/mentors/${mentorId}`),
   getAllStudents: () => api.get('/admin/students'),
   assignMentorToStudent: (studentId: string, mentorId: string) =>
     api.put(`/admin/students/${studentId}/mentor`, { mentorId }),

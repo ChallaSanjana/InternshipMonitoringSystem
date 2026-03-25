@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { studentAPI } from '../lib/api';
+import { authAPI } from '../lib/api';
 import DashboardCards from '../components/dashboard/DashboardCards';
 import type { InternshipItem } from '../components/internships/InternshipCard';
 import { getInternshipTimeStatus } from '../utils/internshipStatus';
@@ -9,17 +10,33 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [mentor, setMentor] = useState<{ name: string; email: string; department?: string } | null>(null);
   const [internships, setInternships] = useState<InternshipItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [avatarError, setAvatarError] = useState(false);
 
   useEffect(() => {
-    const fetchInternships = async () => {
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const response = await studentAPI.getMyInternships();
-        setInternships(response.data.internships || []);
+        const [internshipsResponse, currentUserResponse] = await Promise.all([
+          studentAPI.getMyInternships(),
+          authAPI.getCurrentUser()
+        ]);
+
+        setInternships(internshipsResponse.data.internships || []);
+
+        const mentorData = currentUserResponse.data?.user?.mentorId;
+        if (mentorData && typeof mentorData === 'object') {
+          setMentor({
+            name: mentorData.name,
+            email: mentorData.email,
+            department: mentorData.department
+          });
+        } else {
+          setMentor(null);
+        }
       } catch {
         setError('Failed to load dashboard data');
       } finally {
@@ -27,7 +44,7 @@ export default function DashboardPage() {
       }
     };
 
-    fetchInternships();
+    fetchDashboardData();
   }, []);
 
   const stats = useMemo(() => {
@@ -140,6 +157,31 @@ export default function DashboardPage() {
       </section>
 
       <DashboardCards stats={stats} />
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900">Assigned Mentor</h3>
+
+        {mentor ? (
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Name</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{mentor.name}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Email</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 break-all">{mentor.email}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Department</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{mentor.department || '-'}</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-slate-600">No mentor assigned yet</p>
+        )}
+      </section>
 
       <p className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
         Internships must be approved before they become active.

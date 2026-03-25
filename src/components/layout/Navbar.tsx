@@ -73,7 +73,10 @@ export default function Navbar({ userName, onLogout }: NavbarProps) {
 
   useEffect(() => {
     loadNotifications();
-    const intervalId = window.setInterval(loadNotifications, 20000);
+
+    const intervalId = window.setInterval(() => {
+      loadNotifications();
+    }, 20000);
 
     return () => {
       window.clearInterval(intervalId);
@@ -221,3 +224,4 @@ export default function Navbar({ userName, onLogout }: NavbarProps) {
     </header>
   );
 }
+

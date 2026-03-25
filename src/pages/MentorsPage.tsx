@@ -28,6 +28,7 @@ export default function MentorsPage() {
   const [loading, setLoading] = useState(false);
   const [mentorSubmitting, setMentorSubmitting] = useState(false);
   const [mentorUpdating, setMentorUpdating] = useState(false);
+  const [mentorDeletingId, setMentorDeletingId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -143,6 +144,31 @@ export default function MentorsPage() {
       setError(err instanceof Error ? err.message : 'Failed to update mentor');
     } finally {
       setMentorUpdating(false);
+    }
+  };
+
+  const handleDeleteMentor = async (mentor: Mentor) => {
+    const confirmed = window.confirm(`Delete mentor ${mentor.name}? This will unassign this mentor from students.`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setMentorDeletingId(mentor._id);
+      await adminAPI.deleteMentor(mentor._id);
+      setMentors((prev) => prev.filter((item) => item._id !== mentor._id));
+
+      if (editingMentorId === mentor._id) {
+        handleCancelEditMentor();
+      }
+
+      setSuccess('Mentor deleted successfully');
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete mentor');
+    } finally {
+      setMentorDeletingId('');
     }
   };
 
@@ -300,13 +326,23 @@ export default function MentorsPage() {
                               </button>
                             </div>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleStartEditMentor(mentor)}
-                              className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
-                            >
-                              Edit
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditMentor(mentor)}
+                                className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMentor(mentor)}
+                                disabled={mentorDeletingId === mentor._id}
+                                className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {mentorDeletingId === mentor._id ? 'Deleting...' : 'Delete'}
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>

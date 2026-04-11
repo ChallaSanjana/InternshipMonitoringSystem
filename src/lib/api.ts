@@ -118,4 +118,20 @@ export const mentorAPI = {
     api.put(`/mentor/reports/${reportId}/feedback`, { feedback })
 };
 
+export const chatAPI = {
+  getMessages: (studentId?: string) =>
+    api.get('/chat/messages', {
+      params: studentId ? { studentId } : undefined
+    }),
+  sendMessage: (message: string, studentId?: string) =>
+    api.post('/chat/messages', {
+      message,
+      ...(studentId ? { studentId } : {})
+    }),
+  deleteMessage: (messageId: string, studentId?: string) =>
+    api.delete(`/chat/messages/${messageId}`, {
+      params: studentId ? { studentId } : undefined
+    })
+};
+
 export default api;

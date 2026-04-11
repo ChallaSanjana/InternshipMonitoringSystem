@@ -13,6 +13,7 @@ import studentRoutes from './routes/student.js';
 import adminRoutes from './routes/admin.js';
 import mentorRoutes from './routes/mentor.js';
 import notificationRoutes from './routes/notification.js';
+import chatRoutes from './routes/chat.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -45,6 +46,7 @@ app.use('/api/student', studentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

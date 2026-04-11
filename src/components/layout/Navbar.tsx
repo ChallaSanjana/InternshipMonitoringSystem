@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { notificationAPI } from "../../lib/api";
 import { useTheme } from "../../contexts/ThemeContext";
+import ChatWidget from "../chat/ChatWidget";
 
 interface NavbarProps {
   userName: string;
@@ -164,6 +165,8 @@ export default function Navbar({ userName, onLogout }: NavbarProps) {
               <Moon className="h-5 w-5" />
             )}
           </button>
+
+          <ChatWidget />
 
           <div className="relative" ref={dropdownRef}>
             <button

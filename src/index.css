@@ -2,9 +2,250 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+}
+
 body {
-	margin: 0;
-	font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
-	background: #f8fafc;
-	color: #0f172a;
+  margin: 0;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+html.dark body {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+@layer utilities {
+  .dark .bg-white {
+    background-color: rgb(15 23 42 / 1);
+  }
+
+  .dark .bg-gray-50 {
+    background-color: rgb(2 6 23 / 1);
+  }
+
+  .dark .bg-gray-100 {
+    background-color: rgb(30 41 59 / 1);
+  }
+
+  .dark .bg-gray-200 {
+    background-color: rgb(51 65 85 / 1);
+  }
+
+  .dark .bg-gray-400 {
+    background-color: rgb(71 85 105 / 1);
+  }
+
+  .dark .bg-slate-50 {
+    background-color: rgb(15 23 42 / 1);
+  }
+
+  .dark .bg-slate-100 {
+    background-color: rgb(30 41 59 / 1);
+  }
+
+  .dark .bg-slate-200 {
+    background-color: rgb(51 65 85 / 1);
+  }
+
+  .dark .border-slate-100,
+  .dark .border-slate-200,
+  .dark .border-slate-300 {
+    border-color: rgb(51 65 85 / 1);
+  }
+
+  .dark .border-gray-200,
+  .dark .border-gray-300 {
+    border-color: rgb(71 85 105 / 1);
+  }
+
+  .dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgb(51 65 85 / 1);
+  }
+
+  .dark .text-slate-900 {
+    color: rgb(241 245 249 / 1);
+  }
+
+  .dark .text-slate-800 {
+    color: rgb(226 232 240 / 1);
+  }
+
+  .dark .text-slate-700 {
+    color: rgb(203 213 225 / 1);
+  }
+
+  .dark .text-slate-600,
+  .dark .text-slate-500 {
+    color: rgb(148 163 184 / 1);
+  }
+
+  .dark .text-gray-900 {
+    color: rgb(241 245 249 / 1);
+  }
+
+  .dark .text-gray-800 {
+    color: rgb(226 232 240 / 1);
+  }
+
+  .dark .text-gray-700 {
+    color: rgb(203 213 225 / 1);
+  }
+
+  .dark .text-gray-600,
+  .dark .text-gray-500,
+  .dark .text-gray-400 {
+    color: rgb(148 163 184 / 1);
+  }
+
+  .dark .bg-red-50 {
+    background-color: rgb(76 5 25 / 0.5);
+  }
+
+  .dark .border-red-200 {
+    border-color: rgb(190 24 93 / 0.45);
+  }
+
+  .dark .text-red-700 {
+    color: rgb(251 113 133 / 1);
+  }
+
+  .dark .bg-green-50 {
+    background-color: rgb(6 78 59 / 0.35);
+  }
+
+  .dark .border-green-200 {
+    border-color: rgb(16 185 129 / 0.45);
+  }
+
+  .dark .text-green-700 {
+    color: rgb(110 231 183 / 1);
+  }
+
+  .dark .bg-blue-50 {
+    background-color: rgb(30 58 138 / 0.35);
+  }
+
+  .dark .bg-amber-50 {
+    background-color: rgb(120 53 15 / 0.35);
+  }
+
+  .dark .border-amber-200 {
+    border-color: rgb(245 158 11 / 0.45);
+  }
+
+  .dark .text-amber-700 {
+    color: rgb(252 211 77 / 1);
+  }
+
+  .dark .bg-rose-50 {
+    background-color: rgb(76 5 25 / 0.5);
+  }
+
+  .dark .border-rose-200 {
+    border-color: rgb(244 63 94 / 0.45);
+  }
+
+  .dark .text-rose-700 {
+    color: rgb(253 164 175 / 1);
+  }
+
+  .dark .bg-emerald-50 {
+    background-color: rgb(6 78 59 / 0.35);
+  }
+
+  .dark .border-emerald-200 {
+    border-color: rgb(16 185 129 / 0.45);
+  }
+
+  .dark .text-emerald-700 {
+    color: rgb(110 231 183 / 1);
+  }
+
+  .dark .bg-violet-50 {
+    background-color: rgb(76 29 149 / 0.4);
+  }
+
+  .dark .border-violet-200 {
+    border-color: rgb(139 92 246 / 0.45);
+  }
+
+  .dark .text-violet-700 {
+    color: rgb(196 181 253 / 1);
+  }
+
+  .dark .border-blue-200 {
+    border-color: rgb(59 130 246 / 0.5);
+  }
+
+  .dark .text-blue-900 {
+    color: rgb(191 219 254 / 1);
+  }
+
+  .dark .text-blue-800 {
+    color: rgb(147 197 253 / 1);
+  }
+
+  .dark input,
+  .dark select,
+  .dark textarea {
+    background-color: rgb(15 23 42 / 1);
+    color: rgb(226 232 240 / 1);
+    border-color: rgb(71 85 105 / 1);
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: rgb(148 163 184 / 1);
+  }
+
+  .dark input:focus,
+  .dark select:focus,
+  .dark textarea:focus {
+    border-color: rgb(59 130 246 / 1);
+  }
+
+  .dark option {
+    background-color: rgb(15 23 42 / 1);
+    color: rgb(226 232 240 / 1);
+  }
+
+  .dark .hover\:bg-slate-50:hover,
+  .dark .hover\:bg-slate-100:hover,
+  .dark .hover\:bg-gray-50:hover,
+  .dark .hover\:bg-gray-100:hover,
+  .dark .hover\:bg-gray-300:hover {
+    background-color: rgb(30 41 59 / 1);
+  }
+
+  .dark .shadow-sm,
+  .dark .shadow,
+  .dark .shadow-md,
+  .dark .shadow-lg,
+  .dark .shadow-xl {
+    --tw-shadow-color: rgb(2 6 23 / 0.6);
+  }
 }

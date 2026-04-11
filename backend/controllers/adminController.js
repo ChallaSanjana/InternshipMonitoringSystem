@@ -4,8 +4,9 @@ import ProgressReport from '../models/ProgressReport.js';
 import File from '../models/File.js';
 import Notification from '../models/Notification.js';
 import { sendInternshipStatusEmail } from '../utils/emailService.js';
-import { calculateProgress } from '../utils/progressCalculator.js';
+import { calculateProgressWithBreakdown } from '../utils/progressCalculator.js';
 import { getEffectiveInternshipStatus } from '../utils/internshipLifecycle.js';
+import { analyzeReportContent } from '../utils/reportProgressModel.js';
 
 const notifyStudentOnStatusChange = async (internshipId, status) => {
   const internship = await Internship.findById(internshipId)
@@ -333,11 +334,17 @@ export const getAllInternships = async (req, res) => {
     .sort({ createdAt: -1 });
 
   const internshipIds = internships.map((internship) => internship._id);
-  const files = await File.find({ internshipId: { $in: internshipIds } })
-    .select('internshipId fileName fileUrl fileType createdAt')
-    .sort({ createdAt: -1 });
+  const [files, reports] = await Promise.all([
+    File.find({ internshipId: { $in: internshipIds } })
+      .select('internshipId fileName fileUrl fileType createdAt')
+      .sort({ createdAt: -1 }),
+    ProgressReport.find({ internshipId: { $in: internshipIds } })
+      .select('internshipId date description hoursWorked mentorReviewed mentorFeedback adminFeedback analysis')
+      .sort({ date: -1 })
+  ]);
 
   const filesByInternship = new Map();
+  const reportsByInternship = new Map();
 
   for (const fileDoc of files) {
     const internshipId = fileDoc.internshipId.toString();
@@ -347,15 +354,36 @@ export const getAllInternships = async (req, res) => {
     filesByInternship.get(internshipId).push(fileDoc);
   }
 
+  for (const reportDoc of reports) {
+    const internshipId = reportDoc.internshipId.toString();
+    if (!reportsByInternship.has(internshipId)) {
+      reportsByInternship.set(internshipId, []);
+    }
+    reportsByInternship.get(internshipId).push(reportDoc.toObject());
+  }
+
   const internshipsWithFiles = internships.map((internship) => {
     const plainInternship = internship.toObject();
     const effectiveStatus = getEffectiveInternshipStatus(plainInternship.status, plainInternship.endDate);
 
     plainInternship.status = effectiveStatus;
     plainInternship.files = filesByInternship.get(internship._id.toString()) || [];
-    plainInternship.progress = effectiveStatus === 'approved' || effectiveStatus === 'completed'
-      ? calculateProgress(internship.startDate, internship.endDate)
-      : 0;
+    if (effectiveStatus === 'approved' || effectiveStatus === 'completed') {
+      const { progress, breakdown } = calculateProgressWithBreakdown(
+        internship.startDate,
+        internship.endDate,
+        {
+          reports: reportsByInternship.get(internship._id.toString()) || [],
+          files: plainInternship.files
+        }
+      );
+
+      plainInternship.progress = progress;
+      plainInternship.progressBreakdown = breakdown;
+    } else {
+      plainInternship.progress = 0;
+      plainInternship.progressBreakdown = null;
+    }
 
     return plainInternship;
   });
@@ -533,13 +561,15 @@ export const feedbackOnReport = async (req, res) => {
     return res.status(404).json({ error: 'Report not found' });
   }
 
-  report = await ProgressReport.findByIdAndUpdate(
-    req.params.reportId,
-    {
-      adminFeedback: feedback
-    },
-    { new: true }
-  );
+  report.adminFeedback = feedback;
+  report.analysis = analyzeReportContent({
+    description: report.description,
+    hoursWorked: report.hoursWorked,
+    mentorReviewed: report.mentorReviewed,
+    mentorFeedback: report.mentorFeedback,
+    adminFeedback: report.adminFeedback
+  });
+  await report.save();
 
   try {
     await notifyStudentOnReportFeedback(req.params.reportId);
@@ -567,11 +597,15 @@ export const updateReportFeedback = async (req, res) => {
     return res.status(404).json({ error: 'Report not found' });
   }
 
-  report = await ProgressReport.findByIdAndUpdate(
-    req.params.id,
-    { adminFeedback: feedback },
-    { new: true }
-  );
+  report.adminFeedback = feedback;
+  report.analysis = analyzeReportContent({
+    description: report.description,
+    hoursWorked: report.hoursWorked,
+    mentorReviewed: report.mentorReviewed,
+    mentorFeedback: report.mentorFeedback,
+    adminFeedback: report.adminFeedback
+  });
+  await report.save();
 
   try {
     await notifyStudentOnReportFeedback(req.params.id);
@@ -593,11 +627,15 @@ export const deleteReportFeedback = async (req, res) => {
     return res.status(404).json({ error: 'Report not found' });
   }
 
-  report = await ProgressReport.findByIdAndUpdate(
-    req.params.id,
-    { adminFeedback: '' },
-    { new: true }
-  );
+  report.adminFeedback = '';
+  report.analysis = analyzeReportContent({
+    description: report.description,
+    hoursWorked: report.hoursWorked,
+    mentorReviewed: report.mentorReviewed,
+    mentorFeedback: report.mentorFeedback,
+    adminFeedback: report.adminFeedback
+  });
+  await report.save();
 
   res.json({
     success: true,

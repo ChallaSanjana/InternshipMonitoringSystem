@@ -7,6 +7,8 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { getEffectiveInternshipStatus } from '../utils/internshipLifecycle.js';
+import { calculateProgressWithBreakdown } from '../utils/progressCalculator.js';
+import { analyzeReportContent } from '../utils/reportProgressModel.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -128,10 +130,55 @@ export const addInternship = async (req, res) => {
 
 export const getMyInternships = async (req, res) => {
   const internships = await Internship.find({ studentId: req.user.id }).sort({ createdAt: -1 });
+  const internshipIds = internships.map((internship) => internship._id);
+
+  const [reports, files] = await Promise.all([
+    ProgressReport.find({ studentId: req.user.id, internshipId: { $in: internshipIds } })
+      .select('internshipId date description hoursWorked mentorReviewed mentorFeedback adminFeedback analysis'),
+    File.find({ studentId: req.user.id, internshipId: { $in: internshipIds } })
+      .select('internshipId fileType createdAt')
+  ]);
+
+  const reportsByInternship = new Map();
+  const filesByInternship = new Map();
+
+  for (const report of reports) {
+    const internshipId = report.internshipId.toString();
+    if (!reportsByInternship.has(internshipId)) {
+      reportsByInternship.set(internshipId, []);
+    }
+    reportsByInternship.get(internshipId).push(report.toObject());
+  }
+
+  for (const file of files) {
+    const internshipId = file.internshipId.toString();
+    if (!filesByInternship.has(internshipId)) {
+      filesByInternship.set(internshipId, []);
+    }
+    filesByInternship.get(internshipId).push(file.toObject());
+  }
 
   const normalizedInternships = internships.map((internship) => {
     const plainInternship = internship.toObject();
     plainInternship.status = getEffectiveInternshipStatus(plainInternship.status, plainInternship.endDate);
+
+    if (plainInternship.status === 'approved' || plainInternship.status === 'completed') {
+      const { progress, breakdown } = calculateProgressWithBreakdown(
+        plainInternship.startDate,
+        plainInternship.endDate,
+        {
+          reports: reportsByInternship.get(internship._id.toString()) || [],
+          files: filesByInternship.get(internship._id.toString()) || []
+        }
+      );
+
+      plainInternship.progress = progress;
+      plainInternship.progressBreakdown = breakdown;
+    } else {
+      plainInternship.progress = 0;
+      plainInternship.progressBreakdown = null;
+    }
+
     return plainInternship;
   });
 
@@ -154,6 +201,30 @@ export const getInternshipDetails = async (req, res) => {
 
   const plainInternship = internship.toObject();
   plainInternship.status = getEffectiveInternshipStatus(plainInternship.status, plainInternship.endDate);
+
+  if (plainInternship.status === 'approved' || plainInternship.status === 'completed') {
+    const [reports, files] = await Promise.all([
+      ProgressReport.find({ internshipId: internship._id, studentId: req.user.id })
+        .select('date description hoursWorked mentorReviewed mentorFeedback adminFeedback analysis'),
+      File.find({ internshipId: internship._id, studentId: req.user.id })
+        .select('fileType createdAt')
+    ]);
+
+    const { progress, breakdown } = calculateProgressWithBreakdown(
+      plainInternship.startDate,
+      plainInternship.endDate,
+      {
+        reports: reports.map((report) => report.toObject()),
+        files: files.map((file) => file.toObject())
+      }
+    );
+
+    plainInternship.progress = progress;
+    plainInternship.progressBreakdown = breakdown;
+  } else {
+    plainInternship.progress = 0;
+    plainInternship.progressBreakdown = null;
+  }
 
   res.json({
     success: true,
@@ -267,7 +338,14 @@ export const submitReport = async (req, res) => {
     studentId: req.user.id,
     date,
     description,
-    hoursWorked
+    hoursWorked,
+    analysis: analyzeReportContent({
+      description,
+      hoursWorked,
+      mentorReviewed: false,
+      mentorFeedback: '',
+      adminFeedback: ''
+    })
   });
 
   const student = await User.findById(req.user.id).select('name');
@@ -367,7 +445,18 @@ export const updateReport = async (req, res) => {
 
   const updatedReport = await ProgressReport.findByIdAndUpdate(
     req.params.id,
-    { date, description, hoursWorked },
+    {
+      date,
+      description,
+      hoursWorked,
+      analysis: analyzeReportContent({
+        description,
+        hoursWorked,
+        mentorReviewed: report.mentorReviewed,
+        mentorFeedback: report.mentorFeedback,
+        adminFeedback: report.adminFeedback
+      })
+    },
     { new: true, runValidators: true }
   );
 

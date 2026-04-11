@@ -55,6 +55,42 @@ const progressReportSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null
+    },
+    analysis: {
+      reportScore: {
+        type: Number,
+        default: 0
+      },
+      confidence: {
+        type: Number,
+        default: 0
+      },
+      signals: {
+        wordCount: {
+          type: Number,
+          default: 0
+        },
+        actionHits: {
+          type: Number,
+          default: 0
+        },
+        nextStepHits: {
+          type: Number,
+          default: 0
+        },
+        blockerHits: {
+          type: Number,
+          default: 0
+        },
+        hoursWorked: {
+          type: Number,
+          default: 0
+        }
+      },
+      analyzedAt: {
+        type: Date,
+        default: null
+      }
     }
   },
   { timestamps: true }

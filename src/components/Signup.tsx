@@ -1,25 +1,25 @@
-import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { UserPlus, AlertCircle } from 'lucide-react';
+import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { UserPlus, AlertCircle } from "lucide-react";
 
 interface SignupProps {
   onToggleMode: () => void;
 }
 
 export default function Signup({ onToggleMode }: SignupProps) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'student' | 'admin'>('student');
-  const [department, setDepartment] = useState('');
-  const [semester, setSemester] = useState<number | ''>('');
-  const [error, setError] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"student" | "admin">("student");
+  const [department, setDepartment] = useState("");
+  const [semester, setSemester] = useState<number | "">("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
@@ -29,10 +29,10 @@ export default function Signup({ onToggleMode }: SignupProps) {
         password,
         role,
         department || undefined,
-        semester ? Number(semester) : undefined
+        semester ? Number(semester) : undefined,
       );
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to sign up';
+      const errorMsg = err instanceof Error ? err.message : "Failed to sign up";
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -40,15 +40,19 @@ export default function Signup({ onToggleMode }: SignupProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-slate-100 to-indigo-100 p-4 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-700 dark:bg-slate-900">
         <div className="flex justify-center mb-6">
           <div className="bg-blue-600 p-3 rounded-full">
             <UserPlus className="w-8 h-8 text-white" />
           </div>
         </div>
-        <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">Create Account</h2>
-        <p className="text-center text-gray-600 mb-8">Join our internship tracker</p>
+        <h2 className="mb-2 text-center text-3xl font-bold text-gray-800 dark:text-slate-100">
+          Create Account
+        </h2>
+        <p className="mb-8 text-center text-gray-600 dark:text-slate-400">
+          Join our internship tracker
+        </p>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-start gap-2">
@@ -59,7 +63,10 @@ export default function Signup({ onToggleMode }: SignupProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="name"
+              className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300"
+            >
               Full Name
             </label>
             <input
@@ -68,13 +75,16 @@ export default function Signup({ onToggleMode }: SignupProps) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800"
               placeholder="John Doe"
             />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="email"
+              className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300"
+            >
               Email Address
             </label>
             <input
@@ -83,13 +93,16 @@ export default function Signup({ onToggleMode }: SignupProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="password"
+              className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300"
+            >
               Password
             </label>
             <input
@@ -99,30 +112,36 @@ export default function Signup({ onToggleMode }: SignupProps) {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800"
               placeholder="At least 6 characters"
             />
           </div>
 
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="role"
+              className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300"
+            >
               Role
             </label>
             <select
               id="role"
               value={role}
-              onChange={(e) => setRole(e.target.value as 'student' | 'admin')}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              onChange={(e) => setRole(e.target.value as "student" | "admin")}
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800"
             >
               <option value="student">Student</option>
               <option value="admin">Admin</option>
             </select>
           </div>
 
-          {role === 'student' && (
+          {role === "student" && (
             <>
               <div>
-                <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="department"
+                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300"
+                >
                   Department (Optional)
                 </label>
                 <input
@@ -130,21 +149,26 @@ export default function Signup({ onToggleMode }: SignupProps) {
                   type="text"
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800"
                   placeholder="e.g., Computer Science"
                 />
               </div>
 
               <div>
-                <label htmlFor="semester" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="semester"
+                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300"
+                >
                   Semester (Optional)
                 </label>
                 <input
                   id="semester"
                   type="number"
                   value={semester}
-                  onChange={(e) => setSemester(e.target.value ? parseInt(e.target.value) : '')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  onChange={(e) =>
+                    setSemester(e.target.value ? parseInt(e.target.value) : "")
+                  }
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800"
                   placeholder="e.g., 5"
                   min="1"
                   max="8"
@@ -158,15 +182,15 @@ export default function Signup({ onToggleMode }: SignupProps) {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 rounded-lg transition duration-200 mt-6"
           >
-            {loading ? 'Creating Account...' : 'Sign Up'}
+            {loading ? "Creating Account..." : "Sign Up"}
           </button>
         </form>
 
-        <p className="text-center text-gray-600 mt-6">
-          Already have an account?{' '}
+        <p className="mt-6 text-center text-gray-600 dark:text-slate-400">
+          Already have an account?{" "}
           <button
             onClick={onToggleMode}
-            className="text-blue-600 hover:text-blue-700 font-semibold"
+            className="font-semibold text-blue-600 hover:text-blue-700"
           >
             Sign in
           </button>

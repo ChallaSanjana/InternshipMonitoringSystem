@@ -1,35 +1,32 @@
+import { calculateMlInternshipProgress, calculateDateProgress } from './reportProgressModel.js';
+
 /**
  * Calculate internship progress percentage
  * @param {string|Date} startDate - Internship start date
  * @param {string|Date} endDate - Internship end date
+ * @param {Object} options - Optional ML inputs (reports, files, referenceDate)
  * @returns {number} Progress percentage (0-100)
  */
-export const calculateProgress = (startDate, endDate) => {
-  const current = new Date().getTime();
-  const startTime = new Date(startDate).getTime();
-  const endTime = new Date(endDate).getTime();
-
-  if (Number.isNaN(startTime) || Number.isNaN(endTime)) {
-    return 0;
+export const calculateProgress = (startDate, endDate, options = null) => {
+  if (options && (Array.isArray(options.reports) || Array.isArray(options.files))) {
+    return calculateMlInternshipProgress({
+      startDate,
+      endDate,
+      reports: options.reports || [],
+      files: options.files || [],
+      referenceDate: options.referenceDate || new Date()
+    }).progress;
   }
 
-  const totalDuration = endTime - startTime;
+  return calculateDateProgress(startDate, endDate, new Date());
+};
 
-  if (totalDuration <= 0) {
-    return 0;
-  }
-
-  if (current <= startTime) {
-    return 0;
-  }
-
-  if (current >= endTime) {
-    return 100;
-  }
-
-  const elapsedTime = current - startTime;
-  const progress = (elapsedTime / totalDuration) * 100;
-
-  // Clamp progress between 0 and 100
-  return Math.max(0, Math.min(100, progress));
+export const calculateProgressWithBreakdown = (startDate, endDate, options = {}) => {
+  return calculateMlInternshipProgress({
+    startDate,
+    endDate,
+    reports: options.reports || [],
+    files: options.files || [],
+    referenceDate: options.referenceDate || new Date()
+  });
 };

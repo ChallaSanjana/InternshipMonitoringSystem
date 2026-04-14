@@ -1,5 +1,5 @@
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import Login from "./components/Login";
 import Signup from "./components/Signup";
 import AdminDashboard from "./components/AdminDashboard";
@@ -15,15 +15,31 @@ import MentorDashboardPage from "./pages/MentorDashboardPage";
 import MentorReportsPage from "./pages/MentorReportsPage";
 import { Loader2 } from "lucide-react";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import RoleSelectionPage from "./pages/RoleSelectionPage";
 
 function LoginPage() {
   const navigate = useNavigate();
-  return <Login onToggleMode={() => navigate("/signup")} />;
+  const { role } = useParams<{ role: string }>();
+  const allowedRoles = ["student", "mentor", "admin"] as const;
+  const selectedRole = allowedRoles.includes(role as (typeof allowedRoles)[number])
+    ? (role as (typeof allowedRoles)[number])
+    : null;
+
+  if (!selectedRole) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <Login
+      role={selectedRole}
+      onToggleMode={() => navigate(selectedRole === "student" ? "/signup" : "/login/student")}
+    />
+  );
 }
 
 function SignupPage() {
   const navigate = useNavigate();
-  return <Signup onToggleMode={() => navigate("/login")} />;
+  return <Signup onToggleMode={() => navigate("/login/student")} />;
 }
 
 function AppContent() {
@@ -43,6 +59,16 @@ function AppContent() {
     <Routes>
       <Route
         path="/login"
+        element={
+          user ? (
+            <Navigate to={defaultAuthenticatedRoute} replace />
+          ) : (
+            <RoleSelectionPage />
+          )
+        }
+      />
+      <Route
+        path="/login/:role"
         element={
           user ? (
             <Navigate to={defaultAuthenticatedRoute} replace />

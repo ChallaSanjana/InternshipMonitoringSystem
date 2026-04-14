@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signUp: (name: string, email: string, password: string, role?: 'admin' | 'student', department?: string, semester?: number) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, role: 'student' | 'mentor' | 'admin') => Promise<void>;
   signOut: () => Promise<void>;
   updateUserProfile: (userData: Partial<User>) => void;
 };
@@ -74,9 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, role: 'student' | 'mentor' | 'admin') => {
     try {
-      const response = await authAPI.login({ email, password });
+      const response = await authAPI.login({ email, password, role });
 
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));

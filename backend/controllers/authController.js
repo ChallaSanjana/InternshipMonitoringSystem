@@ -50,23 +50,28 @@ export const signup = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
+  const allowedRoles = ['student', 'mentor', 'admin'];
 
   // Validation
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Please provide email and password' });
+  if (!email || !password || !role) {
+    return res.status(400).json({ error: 'Please provide email, password and role' });
   }
 
-  // Get user with password field
-  const user = await User.findOne({ email }).select('+password');
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({ error: 'Invalid role selection' });
+  }
+
+  // Validate credentials against selected role in a single lookup.
+  const user = await User.findOne({ email, role }).select('+password');
   if (!user) {
-    return res.status(401).json({ error: 'Invalid email or password' });
+    return res.status(401).json({ error: 'Invalid credentials or role' });
   }
 
   // Check password
   const isMatch = await user.matchPassword(password);
   if (!isMatch) {
-    return res.status(401).json({ error: 'Invalid email or password' });
+    return res.status(401).json({ error: 'Invalid credentials or role' });
   }
 
   const token = generateToken(user._id, user.role);

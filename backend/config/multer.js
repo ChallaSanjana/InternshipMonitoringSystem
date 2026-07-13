@@ -41,6 +41,8 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+//Multer configuration creates multer instance
+
 export const upload = multer({
   storage,
   fileFilter,
@@ -48,3 +50,7 @@ export const upload = multer({
     fileSize: 10 * 1024 * 1024 // 10MB limit
   }
 });
+
+//“We use multer middleware to handle file uploads. 
+// It stores files on the server using disk storage, generates unique filenames to avoid conflicts, and validates file types and size for security. 
+// Uploaded files are stored in a dedicated uploads directory.”

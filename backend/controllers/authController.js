@@ -20,12 +20,14 @@ export const signup = async (req, res) => {
     return res.status(400).json({ error: 'Please provide all required fields' });
   }
 
+  const normalizedEmail = String(email).trim().toLowerCase();
+
   if (role && role !== 'student') {
     return res.status(403).json({ error: 'Public signup allows only student accounts' });
   }
 
   // Check if user exists
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email: normalizedEmail });
   if (existingUser) {
     return res.status(400).json({ error: 'Email already registered' });
   }
@@ -33,7 +35,7 @@ export const signup = async (req, res) => {
   // Create user
   const user = await User.create({
     name,
-    email,
+    email: normalizedEmail,
     password,
     role: 'student',
     department,
@@ -62,8 +64,10 @@ export const login = async (req, res) => {
     return res.status(400).json({ error: 'Invalid role selection' });
   }
 
+  const normalizedEmail = String(email).trim().toLowerCase();
+
   // Validate credentials against selected role in a single lookup.
-  const user = await User.findOne({ email, role }).select('+password');
+  const user = await User.findOne({ email: normalizedEmail, role }).select('+password');
   if (!user) {
     return res.status(401).json({ error: 'Invalid credentials or role' });
   }
@@ -99,6 +103,7 @@ export const getCurrentUser = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   const { name, email, department, semester, phoneNumber, collegeName, linkedin, github, about } = req.body;
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : undefined;
 
   const isValidHttpUrl = (value) => {
     try {
@@ -108,11 +113,11 @@ export const updateProfile = async (req, res) => {
       return false;
     }
   };
-  
+
   // Cannot update role
   const update = {};
   if (name) update.name = name;
-  if (email) update.email = email;
+  if (normalizedEmail) update.email = normalizedEmail;
   if (department !== undefined) update.department = department;
   if (semester !== undefined) update.semester = semester;
   if (phoneNumber !== undefined) update.phoneNumber = phoneNumber;
@@ -123,8 +128,8 @@ export const updateProfile = async (req, res) => {
 
   try {
     // Check if email is already taken by another user
-    if (email) {
-      const existingUser = await User.findOne({ email, _id: { $ne: req.user.id } });
+    if (normalizedEmail) {
+      const existingUser = await User.findOne({ email: normalizedEmail, _id: { $ne: req.user.id } });
       if (existingUser) {
         return res.status(400).json({ error: 'Email is already registered' });
       }

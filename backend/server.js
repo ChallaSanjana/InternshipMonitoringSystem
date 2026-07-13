@@ -20,10 +20,101 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+// MongoDB Connection & Seeding
+const seedDatabase = async () => {
+  try {
+    const User = (await import('./models/User.js')).default;
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      console.log('Database is empty. Seeding default users...');
+      
+      // Admin user
+      await User.create({
+        name: "Admin User",
+        email: "admin@example.com",
+        password: "admin123",
+        role: "admin",
+        department: "Computer Science"
+      });
+
+      // Mentor user
+      const mentor = await User.create({
+        name: "Mentor User",
+        email: "mentor@example.com",
+        password: "mentor123",
+        role: "mentor",
+        department: "Computer Science"
+      });
+
+      // Student user
+      await User.create({
+        name: "Student User",
+        email: "student@example.com",
+        password: "student123",
+        role: "student",
+        department: "Computer Science",
+        semester: 6,
+        mentorId: mentor._id
+      });
+
+      console.log('Database seeding complete:');
+      console.log('  Admin: admin@example.com / admin123');
+      console.log('  Mentor: mentor@example.com / mentor123');
+      console.log('  Student: student@example.com / student123');
+    }
+  } catch (seedErr) {
+    console.error('Error seeding database:', seedErr);
+  }
+};
+
+const connectDB = async () => {
+  try {
+    let mongoUri = process.env.MONGODB_URI;
+    
+    if (process.env.USE_MEMORY_DB === 'true' || !mongoUri) {
+      console.log('Using in-memory MongoDB server...');
+      const { MongoMemoryServer } = await import('mongodb-memory-server');
+      const mongoServer = await MongoMemoryServer.create({
+        binary: {
+          version: '4.0.25'
+        }
+      });
+      mongoUri = mongoServer.getUri();
+      console.log(`In-memory MongoDB started at ${mongoUri}`);
+    }
+
+    await mongoose.connect(mongoUri);
+    console.log('MongoDB connected');
+    await seedDatabase();
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    
+    // Try fallback to memory server
+    if (process.env.USE_MEMORY_DB !== 'true') {
+      console.log('Attempting fallback to in-memory MongoDB server...');
+      try {
+        const { MongoMemoryServer } = await import('mongodb-memory-server');
+        const mongoServer = await MongoMemoryServer.create({
+          binary: {
+            version: '4.0.25'
+          }
+        });
+        const fallbackUri = mongoServer.getUri();
+        await mongoose.connect(fallbackUri);
+        console.log(`Fallback MongoDB connected at ${fallbackUri}`);
+        await seedDatabase();
+      } catch (fallbackErr) {
+        console.error('Fallback MongoDB connection failed:', fallbackErr);
+        process.exit(1);
+      }
+    } else {
+      process.exit(1);
+    }
+  }
+};
+
+connectDB();
+
 
 // Middleware
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')

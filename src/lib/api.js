@@ -20,9 +20,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use((response) => response, (error) => {
     // Handle 401 Unauthorized
     if (error.response?.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+        const isAuthUrl = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/signup');
+        if (!isAuthUrl) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        }
     }
     // Extract meaningful error message
     const errorMessage = error.response?.data?.message ||

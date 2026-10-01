@@ -90,7 +90,6 @@ export default function Signup({ onToggleMode }) {
               </label>
               <select id="role" value={role} onChange={(e) => setRole(e.target.value)} className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 transition focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800">
                 <option value="student">Student</option>
-                <option value="admin">Admin</option>
               </select>
             </div>
 

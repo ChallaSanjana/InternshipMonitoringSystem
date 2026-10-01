@@ -24,44 +24,80 @@ const app = express();
 const seedDatabase = async () => {
   try {
     const User = (await import('./models/User.js')).default;
-    const userCount = await User.countDocuments();
-    if (userCount === 0) {
-      console.log('Database is empty. Seeding default users...');
-      
-      // Admin user
-      await User.create({
-        name: "Admin User",
-        email: "admin@example.com",
-        password: "admin123",
-        role: "admin",
-        department: "Computer Science"
-      });
 
-      // Mentor user
-      const mentor = await User.create({
-        name: "Mentor User",
-        email: "mentor@example.com",
-        password: "mentor123",
-        role: "mentor",
-        department: "Computer Science"
-      });
+    const defaultUsers = [
+      {
+        name: 'Admin User',
+        email: 'admin@example.com',
+        password: 'admin123',
+        role: 'admin',
+        department: 'Computer Science'
+      },
+      {
+        name: 'Mentor User',
+        email: 'mentor@example.com',
+        password: 'mentor123',
+        role: 'mentor',
+        department: 'Computer Science'
+      },
+      {
+        name: 'Student User',
+        email: 'student@example.com',
+        password: 'student123',
+        role: 'student',
+        department: 'Computer Science',
+        semester: 6
+      }
+    ];
 
-      // Student user
-      await User.create({
-        name: "Student User",
-        email: "student@example.com",
-        password: "student123",
-        role: "student",
-        department: "Computer Science",
-        semester: 6,
-        mentorId: mentor._id
-      });
+    let mentorUser = await User.findOne({ email: 'mentor@example.com' });
 
-      console.log('Database seeding complete:');
-      console.log('  Admin: admin@example.com / admin123');
-      console.log('  Mentor: mentor@example.com / mentor123');
-      console.log('  Student: student@example.com / student123');
+    for (const seedUser of defaultUsers) {
+      const existingUser = await User.findOne({ email: seedUser.email.toLowerCase() });
+
+      if (!existingUser) {
+        const createdUser = await User.create(seedUser);
+        if (seedUser.role === 'mentor') mentorUser = createdUser;
+        continue;
+      }
+
+      const updatePayload = {
+        name: seedUser.name,
+        role: seedUser.role,
+        department: seedUser.department,
+        semester: seedUser.semester ?? existingUser.semester,
+      };
+
+      const needsRoleFix = existingUser.role !== seedUser.role;
+      const needsNameFix = existingUser.name !== seedUser.name;
+      const needsDepartmentFix = existingUser.department !== seedUser.department;
+      const needsSemesterFix = seedUser.semester && existingUser.semester !== seedUser.semester;
+
+      if (needsRoleFix || needsNameFix || needsDepartmentFix || needsSemesterFix) {
+        Object.assign(existingUser, updatePayload);
+        await existingUser.save();
+      }
+
+      if (!(await existingUser.matchPassword(seedUser.password))) {
+        existingUser.password = seedUser.password;
+        await existingUser.save();
+      }
+
+      if (seedUser.role === 'mentor') mentorUser = existingUser;
     }
+
+    if (mentorUser) {
+      const studentUser = await User.findOne({ email: 'student@example.com', role: 'student' });
+      if (studentUser && !studentUser.mentorId) {
+        studentUser.mentorId = mentorUser._id;
+        await studentUser.save();
+      }
+    }
+
+    console.log('Seed check complete:');
+    console.log('  Admin: admin@example.com / admin123');
+    console.log('  Mentor: mentor@example.com / mentor123');
+    console.log('  Student: student@example.com / student123');
   } catch (seedErr) {
     console.error('Error seeding database:', seedErr);
   }

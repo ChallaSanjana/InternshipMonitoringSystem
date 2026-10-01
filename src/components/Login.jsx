@@ -91,12 +91,12 @@ export default function Login({ onToggleMode, role }) {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-gray-600 dark:text-slate-400">
+          {role === "student" && (<p className="mt-6 text-center text-gray-600 dark:text-slate-400">
             Don't have an account?{" "}
             <button onClick={onToggleMode} className="font-semibold text-blue-600 hover:text-blue-700">
               Sign up
             </button>
-          </p>
+          </p>)}
         </div>
       </section>
     </div>);

@@ -53,7 +53,7 @@ const seedDatabase = async () => {
     let mentorUser = await User.findOne({ email: 'mentor@example.com' });
 
     for (const seedUser of defaultUsers) {
-      const existingUser = await User.findOne({ email: seedUser.email.toLowerCase() });
+      const existingUser = await User.findOne({ email: seedUser.email.toLowerCase() }).select('+password');
 
       if (!existingUser) {
         const createdUser = await User.create(seedUser);
@@ -78,7 +78,7 @@ const seedDatabase = async () => {
         await existingUser.save();
       }
 
-      if (!(await existingUser.matchPassword(seedUser.password))) {
+      if (!existingUser.password || !(await existingUser.matchPassword(seedUser.password))) {
         existingUser.password = seedUser.password;
         await existingUser.save();
       }
